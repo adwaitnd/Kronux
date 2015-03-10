@@ -1,0 +1,2 @@
+0xcd58c830	init_module	/home/adwait/playground/bb-kernel/KERNEL/mcrkmod/rk	EXPORT_SYMBOL
+0x4cdc490c	cleanup_module	/home/adwait/playground/bb-kernel/KERNEL/mcrkmod/rk	EXPORT_SYMBOL

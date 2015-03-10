@@ -1,0 +1,3 @@
+[postinst]
+- Location: /usr/share/kernel-package/pkg/image/postinst
+- Purpose : To automatically create initrd when the kernel is installed
