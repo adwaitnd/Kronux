@@ -1,0 +1,14 @@
+
+                   Linux/RK: Linux Resource Kernel
+
+            Distributed by (c) Carnegie Mellon University
+
+Linux/RK stands for Linux/Resource Kernel, which incorporates real-time 
+extensions to the Linux kernel to support the abstractions of a resource 
+kernel. Linux/RK is developed by the Real-time and Multimedia Systems 
+Laboratory led by Prof. Raj Rajkumar at Carnegie Mellon University.
+
+The latest software and documentations can be found at
+https://rtml.ece.cmu.edu/redmine/projects/rk/
+
+
