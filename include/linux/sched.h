@@ -1724,6 +1724,29 @@ struct task_struct {
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 	unsigned long	task_state_change;
 #endif
+
+#ifdef CONFIG_RK
+	// task properties used by RK added to tast_struct
+	struct list_head rk_resource_set_link;	 // link for a rset task list
+	struct rk_resource_set *rk_resource_set; // resource set (rset)
+	struct rk_ordered_list *rk_cpursv_list;	 // list of eligible cpu rsvs
+	char rk_cannot_schedule; 		 // RK task state
+	char rk_event_log;			 // RK event log
+	char orig_sched_policy;			 // Original scheduling policy
+	int orig_sched_prio; 			 // Original scheduling priority
+	
+	void *rk_profile;  	 		 // RK task profiling (cpursv)
+	void *rk_trace; 	 		 // RK task trace (RK_TRACE)
+
+	// RK Mutex
+	struct list_head rk_mutex_wait_link; 	 // link for a mutex wait list
+	struct list_head rk_mutex_list;		 // list of mutexes owned by the task
+	short rk_mutex_wait_on;			 // mutex id the task waits on
+	short rk_mutex_nested_level;	 	 // mutex nested level
+	short *rk_mutex_inherited_prio_list;	 // inherited priority list
+
+	unsigned long rk_virt_gfn;		 // virtualization GFN to PFN request
+#endif
 };
 
 /* Future-safe accessor for struct task_struct's cpus_allowed. */

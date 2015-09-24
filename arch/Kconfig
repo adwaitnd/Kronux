@@ -30,6 +30,15 @@ config OPROFILE_EVENT_MULTIPLEX
 config HAVE_OPROFILE
 	bool
 
+# CONFIG_RK
+# add RK option to linux menuconfig
+menuconfig RK 
+	bool "Linux/RK (Resource Kernel) support"
+	help
+	  Linux/RK incorporates real-time extensions to the Linux kernel
+	  to provide timely, guaranteed, and enforced access to system
+	  resources for real-time applications.
+
 config OPROFILE_NMI_TIMER
 	def_bool y
 	depends on PERF_EVENTS && HAVE_PERF_EVENTS_NMI && !PPC64

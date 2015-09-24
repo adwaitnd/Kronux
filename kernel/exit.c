@@ -59,6 +59,11 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 
+// RK header
+#ifdef CONFIG_RK
+#include <rk/rk_mc.h>
+#endif
+
 static void exit_mm(struct task_struct *tsk);
 
 static void __unhash_process(struct task_struct *p, bool group_dead)
@@ -697,6 +702,13 @@ void do_exit(long code)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule();
 	}
+
+	#ifdef CONFIG_RK
+	if (rk_exit_hook)
+	{
+		rk_exit_hook(tsk);
+	}    
+	#endif // CONFIG_RK
 
 	exit_signals(tsk);  /* sets PF_EXITING */
 	/*

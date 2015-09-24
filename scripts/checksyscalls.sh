@@ -197,6 +197,35 @@ cat << EOF
 #define __IGNORE_getpmsg
 #define __IGNORE_putpmsg
 #define __IGNORE_vserver
+
+/* RK syscalls */
+#ifndef CONFIG_RK
+#define __IGNORE_rk_resource_set_create
+#define __IGNORE_rk_resource_set_destroy
+#define __IGNORE_rk_cpu_reserve_create
+#define __IGNORE_rt_wait_for_next_period
+#define __IGNORE_rk_setschedulingpolicy
+#define __IGNORE_rk_resource_set_attach_process
+#define __IGNORE_rk_get_start_of_current_period
+#define __IGNORE_rk_get_current_time
+#define __IGNORE_rk_is_scheduling
+#define __IGNORE_rk_resource_set_detach_process
+#define __IGNORE_rk_pip_mutex
+#define __IGNORE_rk_pcp_mutex
+#define __IGNORE_rk_hlp_mutex
+#define __IGNORE_rk_mpcp_mutex
+#define __IGNORE_rk_vmpcp_mutex
+#define __IGNORE_rk_getcpursv_prev_used_ticks
+#define __IGNORE_rk_getcpursv_min_utilization
+#define __IGNORE_rk_getcpursv_max_utilization
+#define __IGNORE_rk_getcpursv_profile
+#define __IGNORE_rk_mem_reserve_create
+#define __IGNORE_rk_mem_reserve_delete
+#define __IGNORE_rk_mem_reserve_eviction_lock
+#define __IGNORE_rk_testing
+#endif
+/* CONFIG_RK */
+
 EOF
 }
 

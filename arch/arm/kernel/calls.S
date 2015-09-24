@@ -397,6 +397,38 @@
 /* 385 */	CALL(sys_memfd_create)
 		CALL(sys_bpf)
 		CALL(sys_execveat)
+
+#ifdef  CONFIG_RK
+/* Non implemented syscalls are implemented with sys_ni_syscall() */
+
+		CALL(sys_ni_syscall)            /* 388 rk_resource_set_create                     */
+		CALL(sys_ni_syscall)            /*     rk_resource_set_destroy                    */
+		CALL(sys_ni_syscall)            /* 390 rt_wait_for_next_period                    */
+		CALL(sys_ni_syscall)            /*     rk_cpu_reserve_create                      */
+		CALL(sys_ni_syscall)            /*     rk_setschedulingpolicy                     */
+		CALL(sys_ni_syscall)            /*     rk_resource_set_attach_process             */
+		CALL(sys_ni_syscall)            /*     rk_get_current_time                        */
+		CALL(sys_ni_syscall)            /* 395 rk_get_start_of_current_period             */
+		CALL(sys_ni_syscall)            /*     rk_is_scheduling                           */
+		CALL(sys_ni_syscall)            /*     rk_resource_set_detach_process             */
+		CALL(sys_ni_syscall)			/*     rk_pi_mutex_create                         */
+		CALL(sys_ni_syscall)			/*     rk_pi_mutex_lock                           */
+		CALL(sys_ni_syscall)			/* 400 rk_pi_mutex_unlock                         */
+		CALL(sys_ni_syscall)			/*     rk_pi_mutex_destroy                        */
+		CALL(sys_ni_syscall)			/*     rk_pcp_mutex_create                        */
+		CALL(sys_ni_syscall)			/*     rk_pcp_mutex_lock                          */
+		CALL(sys_ni_syscall)			/*     rk_pcp_mutex_unlock                        */
+		CALL(sys_ni_syscall)			/* 405 rk_pcp_mutex_destroy                       */
+		CALL(sys_ni_syscall)			/*     rk_getcpursv_prev_used_ticks               */
+		CALL(sys_ni_syscall)			/*     rk_getcpursv_min_utilization               */
+		CALL(sys_ni_syscall) 			/*     rk_getcpursv_max_utilization               */
+		CALL(sys_ni_syscall) 			/*     rk_getcpursv_profile                       */
+		CALL(sys_ni_syscall) 			/* 410 rk_mem_reserve_create                      */
+		CALL(sys_ni_syscall) 			/*     rk_mem_reserve_delete                      */
+		CALL(sys_ni_syscall) 			/*     rk_mem_reserve_eviction_lock               */
+		CALL(sys_ni_syscall) 			/* 413 rk_testing                                 */
+#endif
+
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
 #define syscalls_counted

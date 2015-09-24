@@ -90,6 +90,10 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
 
+ #ifdef CONFIG_RK
+#include <rk/rk_mc.h>
+#endif // CONFIG_RK
+
 void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
 {
 	unsigned long delta;
@@ -2101,6 +2105,40 @@ void wake_up_new_task(struct task_struct *p)
 		p->sched_class->task_woken(rq, p);
 #endif
 	task_rq_unlock(rq, p, &flags);
+
+#ifdef CONFIG_RK
+	/*   
+	 * Note: We do not do the following in a hook (i.e. rk_fork_hook)
+	 * The reasoning is that the system should react in a sane way
+	 * If rk module is inserted later and previously running tasks try to
+	 * query or use rk stuff 
+	 */
+	
+	INIT_LIST_HEAD(&p->rk_resource_set_link);
+	p->rk_resource_set = NULL;
+	p->rk_cpursv_list  = NULL;
+	p->rk_cannot_schedule = RK_TASK_SCHEDULABLE;
+	p->rk_event_log = false;
+	p->orig_sched_policy = p->policy;
+	p->orig_sched_prio = p->rt_priority;
+	p->rk_profile = NULL;
+	p->rk_trace = NULL;
+	INIT_LIST_HEAD(&p->rk_mutex_wait_link);
+	INIT_LIST_HEAD(&p->rk_mutex_list);
+	p->rk_mutex_wait_on = -1;
+	p->rk_mutex_nested_level = 0;
+	p->rk_mutex_inherited_prio_list = NULL;
+	p->rk_virt_gfn = 0;
+	
+	/*   
+	 * This is where the reserve gets inherited by child processes.
+	 * Happens only if the parent has the reserve_inherit flag set
+	 */
+	if (rk_fork_hook != NULL) {
+		rk_fork_hook (p); 
+	}    
+#endif // CONFIG_RK
+
 }
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
@@ -2413,6 +2451,11 @@ void sched_exec(void)
 	struct task_struct *p = current;
 	unsigned long flags;
 	int dest_cpu;
+
+#ifdef CONFIG_RK
+	// If task has a CPU reservation, we do not migrate it.
+	if (p->rk_resource_set && p->rk_resource_set->nr_cpu_reserves) return;
+#endif	// CONFIG_RK
 
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
 	dest_cpu = p->sched_class->select_task_rq(p, task_cpu(p), SD_BALANCE_EXEC, 0);
@@ -2782,6 +2825,33 @@ static void __sched __schedule(void)
 		switch_count = &prev->nvcsw;
 	}
 
+#ifdef CONFIG_RK
+	/* We need to check if RK should deactivate the task.
+	 * 
+	 * The task_state is not used to signal a task to be stopped, 
+	 * because it violates kernel assumptions. 
+	 * So, we use the rk_cannot_schedule flag instead.
+	 *
+	 * The preempt_count variable is used to prevent task deactivation 
+	 * when PREEMPT_ACTIVE is set, as can be seen in the above code.
+	 * In our context, we don't need to care about PREEMPT_ACTIVE, 
+	 * because we know which task must be stopped.
+	 */
+	if (rk_schedule_hook) {
+		if (prev->rk_resource_set != NULL
+		    && (prev->rk_cannot_schedule & RK_TASK_UNSCHEDULABLE)) {
+			if (!prev->state || (preempt_count() & PREEMPT_ACTIVE)) {
+				prev->state = TASK_UNINTERRUPTIBLE;
+				deactivate_task(rq, prev, DEQUEUE_SLEEP);
+				prev->on_rq = 0;
+			}
+			else {
+				prev->state = TASK_UNINTERRUPTIBLE;
+			}
+		}
+	}
+#endif	// CONFIG_RK
+
 	if (task_on_rq_queued(prev))
 		update_rq_clock(rq);
 
@@ -2795,7 +2865,19 @@ static void __sched __schedule(void)
 		rq->curr = next;
 		++*switch_count;
 
+#ifdef CONFIG_RK
+		if (rk_schedule_hook)
+			rk_schedule_hook(prev, next);
+		if (rk_trace_schedule_hook)
+			rk_trace_schedule_hook(prev, next);
+
 		rq = context_switch(rq, prev, next); /* unlocks the rq */
+
+		if (rk_post_schedule_hook)
+			rk_post_schedule_hook();
+#else // ifdef CONFIG_RK
+		rq = context_switch(rq, prev, next); /* unlocks the rq */
+#endif // CONFIG_RK
 		cpu = cpu_of(rq);
 	} else
 		raw_spin_unlock_irq(&rq->lock);
@@ -4020,6 +4102,15 @@ long sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
 		rcu_read_unlock();
 		return -ESRCH;
 	}
+
+#ifdef CONFIG_RK
+	// If task has a CPU reservation, we do not allow a user to modify CPU affinity.
+	if (p->rk_resource_set && p->rk_resource_set->nr_cpu_reserves) {
+		rcu_read_unlock();
+		put_online_cpus();
+		return -EPERM;
+	}
+#endif	// CONFIG_RK
 
 	/* Prevent p going away */
 	get_task_struct(p);

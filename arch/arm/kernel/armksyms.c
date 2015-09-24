@@ -169,3 +169,9 @@ EXPORT_SYMBOL(__gnu_mcount_nc);
 EXPORT_SYMBOL(__pv_phys_pfn_offset);
 EXPORT_SYMBOL(__pv_offset);
 #endif
+
+#ifdef CONFIG_RK
+extern void *sys_call_table[];
+EXPORT_SYMBOL(sys_call_table);
+EXPORT_SYMBOL(smp_send_reschedule);
+#endif

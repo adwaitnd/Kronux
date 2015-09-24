@@ -80,7 +80,10 @@ asmlinkage int sys_rt_wait_for_next_period(void)
 	if (debug_rd == rset->rd_entry) {
 		printk("wait_for_next_period: pid %d cpu %d\n", current->pid, cpuid);
 	}
-	sleep_on(&(current->rk_resource_set->depleted_wait));
+	//sleep_on(&(current->rk_resource_set->depleted_wait)); // depricated code
+	
+	set_task_state(current, TASK_UNINTERRUPTIBLE);
+    schedule();
 	
 	return RK_SUCCESS; 
 
