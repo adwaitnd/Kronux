@@ -368,8 +368,8 @@ asmlinkage  int sys_rk_resource_set_detach_process(int rd, pid_t pid)
 	else {
 		// task == current
 		task->rk_cannot_schedule |= RK_TASK_UNSCHEDULABLE;
-		if (__get_cpu_var(rk_current_cpu_reserve)) {
-			tmprsv = __get_cpu_var(rk_current_cpu_reserve);
+		if (this_cpu_ptr(rk_current_cpu_reserve)) {
+			tmprsv = this_cpu_ptr(rk_current_cpu_reserve);
 			rk_rdtsc(&now);
 			// Stop current task's enforcement timer. 
 			// Current task will not be suspended by RK anymore.
@@ -382,7 +382,7 @@ asmlinkage  int sys_rk_resource_set_detach_process(int rd, pid_t pid)
 			tmptask = rk_get_next_task_in_cpursv(rset, tmprsv, task, task);
 #endif
 
-			__get_cpu_var(rk_current_cpu_reserve) = NULL;
+			this_cpu_ptr(rk_current_cpu_reserve) = NULL;
 		}
 	}	
 	

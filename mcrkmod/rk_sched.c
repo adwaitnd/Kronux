@@ -100,7 +100,7 @@ void rk_schedule(struct task_struct *prev, struct task_struct *next)
 
 	// Stop and start resource accounting
 	if (((volatile rk_resource_set_t*)prev->rk_resource_set)) {	
-		rk_reserve_t cpursv = __get_cpu_var(rk_current_cpu_reserve); 
+		rk_reserve_t cpursv = this_cpu_ptr(rk_current_cpu_reserve); 
 		if (cpursv && (cpursv->reservation_state & RSV_IS_RUNNING)) {
 			cpu_reserve_stop_account(cpursv, &now);
 		}
@@ -113,18 +113,18 @@ void rk_schedule(struct task_struct *prev, struct task_struct *next)
 		// Note: rk_current_cpu_reserve may be NULL, if prev was suspended by rk_schedule().
 		cpursv = rk_get_task_current_cpursv(prev);
 		if (cpursv && !(cpursv->reservation_state & RSV_IS_RUNNING) && !((cpu_reserve_t)cpursv->reserve)->waking_task) {
-			__get_cpu_var(rk_post_schedule_wakeup) = rk_get_next_task_in_cpursv(prev_rs, cpursv, prev, NULL);
-			((cpu_reserve_t)cpursv->reserve)->waking_task = __get_cpu_var(rk_post_schedule_wakeup);
+			this_cpu_ptr(rk_post_schedule_wakeup) = rk_get_next_task_in_cpursv(prev_rs, cpursv, prev, NULL);
+			((cpu_reserve_t)cpursv->reserve)->waking_task = this_cpu_ptr(rk_post_schedule_wakeup);
 		}
 #endif
 		if (prev->rk_resource_set->rd_entry == debug_rd) {
 			printk("prev: pid %d state %ld rk_state %d currsv %d taskrsv %d tskrsvstt %d cpuid %d\n", 
 				prev->pid, prev->state, prev->rk_cannot_schedule, 
-				__get_cpu_var(rk_current_cpu_reserve) ? __get_cpu_var(rk_current_cpu_reserve)->reserve_index : -1, 
+				this_cpu_ptr(rk_current_cpu_reserve) ? this_cpu_ptr(rk_current_cpu_reserve)->reserve_index : -1, 
 				cpursv ? cpursv->reserve_index : -1, cpursv ? cpursv->reservation_state : -1, raw_smp_processor_id());
 		}
 	}
-	__get_cpu_var(rk_current_cpu_reserve) = NULL;
+	__this_cpu_write(rk_current_cpu_reserve, NULL);
 	if (((volatile rk_resource_set_t*)next->rk_resource_set)) {	
 		rk_reserve_t cpursv = rk_get_task_current_cpursv(next); 
 		// Set task running state
@@ -167,7 +167,7 @@ void rk_schedule(struct task_struct *prev, struct task_struct *next)
 					printk("next: pid %d state %ld rk_state %d rsvstt %d cpuid %d\n", 
 						next->pid, next->state, next->rk_cannot_schedule, cpursv->reservation_state, raw_smp_processor_id());
 				}
-				__get_cpu_var(rk_current_cpu_reserve) = cpursv;
+				__this_cpu_write(rk_current_cpu_reserve, cpursv);
 				((cpu_reserve_t)cpursv->reserve)->waking_task = NULL;
 				cpu_reserve_start_account(cpursv, next, &now);
 			}
@@ -199,10 +199,10 @@ void rk_post_schedule(void)
 	struct task_struct *task;
 
 	local_irq_save(flags);
-	if (__get_cpu_var(rk_post_schedule_wakeup) == NULL) goto end;
+	if (this_cpu_ptr(rk_post_schedule_wakeup) == NULL) goto end;
 
-	task = __get_cpu_var(rk_post_schedule_wakeup);
-	__get_cpu_var(rk_post_schedule_wakeup) = NULL;
+	task = this_cpu_ptr(rk_post_schedule_wakeup);
+	__this_cpu_write(rk_post_schedule_wakeup, NULL);
 
 	if (task) wake_up_process(task);
 end:
