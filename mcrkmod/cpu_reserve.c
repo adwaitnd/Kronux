@@ -192,8 +192,8 @@ void rk_prepare_task_for_cpursv(int type, struct task_struct *task, int cpunum, 
 
 #ifndef RK_GLOBAL_SCHED
 	cpumask_t cpumask;
-	cpus_clear(cpumask);
-	cpu_set(cpunum, cpumask);
+	cpumask_clear(&cpumask);
+	cpumask_set_cpu(cpunum, &cpumask);
 
 	// Partitioned sched: Migrate the task to the rsv's core
 	// - Note: set_cpus_allowed_ptr() cannot be called in ISR 
@@ -248,7 +248,7 @@ void cpu_reserves_init(void)
 	cpumask_t cpumask;
 	struct sched_param par;
 
-	cpus_clear(cpumask);
+	cpumask_clear(&cpumask);
 	par.sched_priority = MAX_LINUXRK_PRIORITY; 
 
 	for_each_online_cpu(cpunum) {
@@ -271,8 +271,8 @@ void cpu_reserves_init(void)
 			continue;
 		}
 
-		cpus_clear(cpumask);
-		cpu_set(cpunum, cpumask);
+		cpumask_clear(&cpumask);
+		cpumask_set_cpu(cpunum, &cpumask);
 		set_cpus_allowed_ptr(per_cpu(rk_worker, cpunum), &cpumask);
 
 		sched_setscheduler_nocheck(per_cpu(rk_worker, cpunum), cpu_reserves_kernel_scheduling_policy, &par);
@@ -1087,7 +1087,7 @@ asmlinkage int sys_rk_cpu_reserve_create(int rd, cpu_reserve_attr_t cpu_attr)
 		goto error_sem_unlock;
 	}
 
-	cpus_clear(cpumask);
+	cpumask_clear(&cpumask);
 
 #ifndef RK_GLOBAL_SCHED
 	// Input check: CPU number
@@ -1101,7 +1101,7 @@ asmlinkage int sys_rk_cpu_reserve_create(int rd, cpu_reserve_attr_t cpu_attr)
 		printk("sys_rk_cpu_reserve_create: Task with CPU reserve cannot create another CPU reserve (pid %d)\n", current->pid);
 		goto error_sem_unlock;
 	}
-	cpu_set(cpunum, cpumask);
+	cpumask_set_cpu(cpunum, &cpumask);
 	if (set_cpus_allowed_ptr(current, &cpumask) != 0) {
 		printk("sys_rk_cpu_reserve_create: set_cpus_allowed_ptr error\n");
 		goto error_set_cpus;
@@ -1241,7 +1241,7 @@ error_spin_unlock:
 
 #ifndef RK_GLOBAL_SCHED
 error_set_cpus:
-	cpus_setall(cpumask);
+	cpumask_setall(&cpumask);
 	set_cpus_allowed_ptr(current, &cpumask);
 #endif
 
@@ -1276,8 +1276,8 @@ void rk_cpu_reserve_delete(cpu_reserve_t cpu)
 #ifndef RK_GLOBAL_SCHED
 	{
 		cpumask_t cpumask;
-		cpus_clear(cpumask);
-		cpu_set(cpunum, cpumask);
+		cpumask_clear(&cpumask);
+		cpumask_set_cpu(cpunum, &cpumask);
 		set_cpus_allowed_ptr(current, &cpumask);
 	}
 #endif

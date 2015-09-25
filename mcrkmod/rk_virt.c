@@ -251,8 +251,8 @@ int sys_rk_vchannel_register_guest(int cpunum, char *path)
 	per_cpu(vchannel_guest, cpunum) = f;
 	per_cpu(vchannel_manager, cpunum) = task;
 
-	cpus_clear(cpumask);
-	cpu_set(cpunum, cpumask);
+	cpumask_clear(&cpumask);
+	cpumask_set_mask(cpunum, &cpumask);
 	set_cpus_allowed_ptr(task, &cpumask);
 
 	par.sched_priority = MAX_LINUXRK_PRIORITY;

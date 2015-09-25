@@ -382,7 +382,7 @@ asmlinkage  int sys_rk_resource_set_detach_process(int rd, pid_t pid)
 			tmptask = rk_get_next_task_in_cpursv(rset, tmprsv, task, task);
 #endif
 
-			this_cpu_ptr(rk_current_cpu_reserve) = NULL;
+			__this_cpu_write(rk_current_cpu_reserve, NULL);
 		}
 	}	
 	

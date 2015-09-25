@@ -109,8 +109,8 @@ void rk_timer_init(void)
 #ifndef RK_GLOBAL_SCHED
 	for_each_online_cpu(cpunum) {
 		cpumask_t cpumask;
-		cpus_clear(cpumask);
-		cpu_set(cpunum,cpumask);
+		cpumask_clear(&cpumask);
+		cpumask_set_cpu(cpunum,&cpumask);
 		if (set_cpus_allowed_ptr(current, &cpumask) != 0) {
 			printk("rk_timer_init: set_cpus_allowed_ptr error\n");
 			return;

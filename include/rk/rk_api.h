@@ -41,7 +41,7 @@
 #elif defined(__ia64__) || defined(__ia64) || defined(ia64) || defined(__IA64__)
 	#include <arch/ia64/include/asm/unistd.h>
 #elif defined(__arm__) || defined(__arm) || defined(arm) || defined(__ARM__) || defined(ARCH_arm)
-	#include <arch/arm/include/asm/unistd.h>
+	#include <arch/arm/include/uapi/asm/unistd.h>
 //#elif defined(__powerpc__) || defined(__powerpc) || defined(powerpc) || defined(__POWERPC__)
 //#elif defined(__sparc__) || defined(__sparc) || defined(sparc) || defined(__SPARC__)
 //#elif defined(__alpha__) || defined(__alpha) || defined(alpha) || defined(__ALPHA__)

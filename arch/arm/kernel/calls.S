@@ -399,34 +399,36 @@
 		CALL(sys_execveat)
 
 #ifdef  CONFIG_RK
-/* Non implemented syscalls are implemented with sys_ni_syscall() */
-
-		CALL(sys_ni_syscall)            /* 388 rk_resource_set_create                     */
-		CALL(sys_ni_syscall)            /*     rk_resource_set_destroy                    */
-		CALL(sys_ni_syscall)            /* 390 rt_wait_for_next_period                    */
-		CALL(sys_ni_syscall)            /*     rk_cpu_reserve_create                      */
-		CALL(sys_ni_syscall)            /*     rk_setschedulingpolicy                     */
-		CALL(sys_ni_syscall)            /*     rk_resource_set_attach_process             */
-		CALL(sys_ni_syscall)            /*     rk_get_current_time                        */
-		CALL(sys_ni_syscall)            /* 395 rk_get_start_of_current_period             */
-		CALL(sys_ni_syscall)            /*     rk_is_scheduling                           */
-		CALL(sys_ni_syscall)            /*     rk_resource_set_detach_process             */
-		CALL(sys_ni_syscall)			/*     rk_pi_mutex_create                         */
-		CALL(sys_ni_syscall)			/*     rk_pi_mutex_lock                           */
-		CALL(sys_ni_syscall)			/* 400 rk_pi_mutex_unlock                         */
-		CALL(sys_ni_syscall)			/*     rk_pi_mutex_destroy                        */
-		CALL(sys_ni_syscall)			/*     rk_pcp_mutex_create                        */
-		CALL(sys_ni_syscall)			/*     rk_pcp_mutex_lock                          */
-		CALL(sys_ni_syscall)			/*     rk_pcp_mutex_unlock                        */
-		CALL(sys_ni_syscall)			/* 405 rk_pcp_mutex_destroy                       */
-		CALL(sys_ni_syscall)			/*     rk_getcpursv_prev_used_ticks               */
-		CALL(sys_ni_syscall)			/*     rk_getcpursv_min_utilization               */
-		CALL(sys_ni_syscall) 			/*     rk_getcpursv_max_utilization               */
-		CALL(sys_ni_syscall) 			/*     rk_getcpursv_profile                       */
-		CALL(sys_ni_syscall) 			/* 410 rk_mem_reserve_create                      */
-		CALL(sys_ni_syscall) 			/*     rk_mem_reserve_delete                      */
-		CALL(sys_ni_syscall) 			/*     rk_mem_reserve_eviction_lock               */
-		CALL(sys_ni_syscall) 			/* 413 rk_testing                                 */
+									/* 388 -> rk_base */
+		CALL(sys_ni_syscall)        /* +0 rk_resource_set_create                     */
+		CALL(sys_ni_syscall)        /*  rk_resource_set_destroy                    */
+		CALL(sys_ni_syscall)        /*  rk_cpu_reserve_create                      */
+		CALL(sys_ni_syscall)        /*  rt_wait_for_next_period                    */
+		CALL(sys_ni_syscall)        /*  rk_setschedulingpolicy                     */
+		CALL(sys_ni_syscall)        /* +5 rk_resource_set_attach_process             */
+		CALL(sys_ni_syscall)        /*  rk_get_start_of_current_period             */
+		CALL(sys_ni_syscall)        /*  rk_get_current_time                        */
+		CALL(sys_ni_syscall)        /*  rk_is_scheduling                           */
+		CALL(sys_ni_syscall)        /*  rk_resource_set_detach_process             */
+		CALL(sys_ni_syscall)		/* +10 rk_pip_mutex                               */
+		CALL(sys_ni_syscall)		/*  rk_pcp_mutex                               */
+		CALL(sys_ni_syscall)		/*  rk_hlp_mutex                               */
+		CALL(sys_ni_syscall)		/*  rk_mpcp_mutex                              */
+		CALL(sys_ni_syscall)		/*  rk_vmpcp_mutex                             */
+		CALL(sys_ni_syscall)		/* +15 rk_vmpcp_intervm_mutex                     */
+		CALL(sys_ni_syscall)		/*  rk_getcpursv_prev_used_ticks               */
+		CALL(sys_ni_syscall)		/*  rk_getcpursv_min_utilization               */
+		CALL(sys_ni_syscall) 		/*  rk_getcpursv_max_utilization               */
+		CALL(sys_ni_syscall) 		/*  rk_getcpursv_profile                       */
+		CALL(sys_ni_syscall) 		/* +20 rk_mem_reserve_create                      */
+		CALL(sys_ni_syscall) 		/*  rk_mem_reserve_delete                      */
+		CALL(sys_ni_syscall) 		/*  rk_mem_reserve_eviction_lock               */
+		CALL(sys_ni_syscall) 		/*  rk_trace                                   */
+		CALL(sys_ni_syscall) 		/*  rk_get_start_of_next_vcpu_period           */
+		CALL(sys_ni_syscall) 		/* +25 rk_vchannel                                */
+		CALL(sys_ni_syscall) 		/*  rk_vint_register_pseudo_vcpu               */
+		CALL(sys_ni_syscall) 		/*  rk_vint_finish_intr                        */
+		CALL(sys_ni_syscall) 		/*  rk_testing                                 */
 #endif
 
 #ifndef syscalls_counted

@@ -1250,8 +1250,8 @@ void __rk_pmc_init(void)
 
 	for (i = 0; i < num_cpus; i++) {
 		// Set CPU affinity of task
-		cpus_clear(cpumask);
-		cpu_set(i, cpumask);
+		cpumask_clear(&cpumask);
+		cpumask_set_cpu(i, &cpumask);
 		set_cpus_allowed_ptr(current, &cpumask);
 
 		// Disable counters while programming
@@ -1337,8 +1337,8 @@ void __rk_pmc_init(void)
 
 	for (i = 0; i < num_cpus; i++) {
 		// Set CPU affinity of task
-		cpus_clear(cpumask);
-		cpu_set(i, cpumask);
+		cpumask_clear(&cpumask);
+		cpumask_set_cpu(i, &cpumask);
 		set_cpus_allowed_ptr(current, &cpumask);
 
 		// Disable Intel Speed Step/Turbo Boost 
@@ -1459,8 +1459,8 @@ void __rk_pmc_init(void)
 	int i = 0;
 
 	for (i = 0; i < num_cpus; i++) {
-		cpus_clear(cpumask);
-		cpu_set(i, cpumask);
+		cpumask_clear(&cpumask);
+		cpumask_set_cpu(i, &cpumask);
 		set_cpus_allowed_ptr(current, &cpumask);
 
 #ifdef RK_ARM_iMX6
@@ -1603,8 +1603,8 @@ void get_pmc_info_all_core(struct pmc_counter *pmc)
 	int i;
 	for (i = 0; i < num_cpus; i++) {
 		// Set CPU affinity of task
-		cpus_clear(cpumask);
-		cpu_set(i, cpumask);
+		cpumask_clear(&cpumask);
+		cpumask_set_cpu(i, &cpumask);
 		set_cpus_allowed_ptr(current, &cpumask);
 
 		get_pmc_info(&pmc[i]);

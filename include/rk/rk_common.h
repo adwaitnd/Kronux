@@ -92,17 +92,17 @@
 //#define RK_UNIQUE_PRIORITY
 #define RK_UNIQUE_PRIORITY_ACROSS_PROCESSORS
 
-#define RK_TRACE 
+// #define RK_TRACE 
 #ifdef RK_TRACE
 	#define RK_TRACE_SUM
 	//#define RK_TRACE_SUM_HISTORY
 	#define RK_EVENT_LOG
 #endif
 
-#define RK_PROFILE_PMC
+// #define RK_PROFILE_PMC
 
-//#define RK_MEM_NO_SWAP // For systems with no swap partition (i.e. ARM odroid)
-#define RK_VIRT_SUPPORT
+// #define RK_MEM_NO_SWAP // For systems with no swap partition (i.e. ARM odroid)
+// #define RK_VIRT_SUPPORT
 
 // Platform selection (For hardware-specific PMC, bank coloring, ...)
 //#define RK_X86_SANDYBRIDGE 	// Intel Sandy Bridge or newer architectures (e.g., Intel Core i7-2600, i5-2540)

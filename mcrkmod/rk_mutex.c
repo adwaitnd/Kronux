@@ -41,7 +41,7 @@
 	#define rkmtx_dbg(...) printk(__VA_ARGS__)
 #else
 	#define rkmtx_dbg(...)
-#endif
+#endif	// VERBOSE_RK_MUTEX
 
 // Save critical section enter/exit info
 #define CRITICAL_SECTION_INFO
@@ -53,7 +53,7 @@
 	#define rkmtx_trace_fn(a,b)
 	#define rkmtx_vm_event(a,b)
 	#define rkmtx_event(a,b,c,d,e)
-#endif
+#endif	// CRITICAL_SECTION_INFO
 
 rk_mutex_t *rk_mutex_desc = NULL;
 LIST_HEAD(online_mutex_head); 
@@ -63,7 +63,7 @@ DEFINE_PER_CPU(int, vcpu_gcs_count);
 #ifdef RK_VIRT_SUPPORT
 rk_intervm_mutex_t *rk_intervm_mutex_desc = NULL;
 raw_spinlock_t intervm_mutex_desc_lock;
-#endif
+#endif	// RK_VIRT_SUPPORT
 
 #define TYPE_NAME_LENGTH 20
 static char type_names[__NR_RK_MUTEX_TYPES][TYPE_NAME_LENGTH] = {
@@ -116,7 +116,7 @@ void rk_mutex_init(void)
 		rk_intervm_mutex_desc[i] = NULL;
 	}
 	raw_spin_lock_init(&intervm_mutex_desc_lock);
-#endif
+#endif	// RK_VIRT_SUPPORT
 }
 
 void rk_mutex_cleanup(void)
@@ -143,7 +143,7 @@ void rk_mutex_cleanup(void)
 		kfree(rk_intervm_mutex_desc);
 		rk_intervm_mutex_desc = NULL;
 	}
-#endif
+#endif	// RK_VIRT_SUPPORT
 }
 
 
@@ -527,7 +527,7 @@ int rk_mutex_open(int type, int key, int mode)
 		printk("rk_%s_mutex_open: works under partitioned scheduling\n", type_names[type]);
 		return RK_ERROR;
 	}
-#endif
+#endif	// RK_GLOBAL_SCHED
 	// Allocate rk_mutex_inherited_prio_list for current task
 	if (!current->rk_mutex_inherited_prio_list) {
 		if (rk_mutex_create_inherited_prio_list() == RK_ERROR) {
@@ -640,7 +640,7 @@ int rk_mutex_destroy(int type, int key, int kill_waiters)
 		printk("rk_%s_mutex_destroy: works under partitioned scheduling\n", type_names[type]);
 		return RK_ERROR;
 	}
-#endif
+#endif	// RK_GLOBAL_SCHED
 	// Find a mutex with the key 
 	raw_spin_lock_irqsave(&mutex_desc_lock, flags);
 	list_for_each_entry(mutex, &online_mutex_head, online_mutex_link) {
@@ -751,7 +751,7 @@ int rk_mutex_lock(int type, int mid, int is_trylock)
 		printk("rk_%s_mutex_lock: works under partitioned scheduling\n", type_names[type]);
 		return RK_ERROR;
 	}
-#endif
+#endif	// RK_GLOBAL_SCHED
 
 retry_locking:
 	// Check if rk mutex is available (need to check whenever retrying)
@@ -797,7 +797,8 @@ retry_locking:
 #else
 			// Global scheduling
 			if (tmpmtx->owner && tmpmtx->ceiling > highest_locked_ceiling) {
-#endif
+
+#endif	// RK_GLOBAL_SCHED
 				highest_locked_ceiling = tmpmtx->ceiling;
 				blocking_task = tmpmtx->owner;
 			}
@@ -938,7 +939,7 @@ int __rk_mutex_unlock(int type, int mid, struct task_struct *owner)
 		printk("rk_%s_mutex_unlock: works under partitioned scheduling\n", type_names[type]);
 		return RK_ERROR;
 	}
-#endif
+#endif	// RK_GLOBAL_SCHED
 
 	raw_spin_lock_irqsave(&mutex_desc_lock, flags);
 	mutex = rk_mutex_desc[mid];
@@ -1106,7 +1107,7 @@ int __rk_vmpcp_start_gcs_handler(int mode)
 	return RK_SUCCESS;
 #else
 	return RK_ERROR;
-#endif
+#endif	// RK_GLOBAL_SCHED
 }
 
 int __rk_vmpcp_finish_gcs_handler(void)
@@ -1139,7 +1140,7 @@ int __rk_vmpcp_finish_gcs_handler(void)
 	return RK_SUCCESS;
 #else
 	return RK_ERROR;
-#endif
+#endif	// RK_GLOBAL_SCHED
 }
 
 
@@ -2010,6 +2011,3 @@ int rk_intervm_mutex_remove_from_waitlist(int mid, struct task_struct *task) { r
 int rk_intervm_mutex_remove_from_waitlist_handler(int mid, int task_id, struct task_struct *vcpu) { return RK_ERROR; }
 
 #endif // RK_VIRT_SUPPORT
-
-
-

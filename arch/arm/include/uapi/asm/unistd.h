@@ -415,6 +415,40 @@
 #define __NR_bpf			(__NR_SYSCALL_BASE+386)
 #define __NR_execveat			(__NR_SYSCALL_BASE+387)
 
+#if     defined(__RK__) || defined(CONFIG_RK)
+#define __NR_RK_SYSCALL_BASE						 (__NR_SYSCALL_BASE+388)
+#define __NR_rk_resource_set_create                  (__NR_RK_SYSCALL_BASE) 
+#define __NR_rk_resource_set_destroy                 (__NR_RK_SYSCALL_BASE+1) 
+#define __NR_rk_cpu_reserve_create                   (__NR_RK_SYSCALL_BASE+2) 
+#define __NR_rt_wait_for_next_period                 (__NR_RK_SYSCALL_BASE+3) 
+#define __NR_rk_setschedulingpolicy                  (__NR_RK_SYSCALL_BASE+4) 
+#define __NR_rk_resource_set_attach_process          (__NR_RK_SYSCALL_BASE+5) 
+#define __NR_rk_get_start_of_current_period          (__NR_RK_SYSCALL_BASE+6) 
+#define __NR_rk_get_current_time                     (__NR_RK_SYSCALL_BASE+7) 
+#define __NR_rk_is_scheduling                        (__NR_RK_SYSCALL_BASE+8) 
+#define __NR_rk_resource_set_detach_process          (__NR_RK_SYSCALL_BASE+9) 
+#define __NR_rk_pip_mutex                            (__NR_RK_SYSCALL_BASE+10) 
+#define __NR_rk_pcp_mutex                            (__NR_RK_SYSCALL_BASE+11) 
+#define __NR_rk_hlp_mutex                            (__NR_RK_SYSCALL_BASE+12) 
+#define __NR_rk_mpcp_mutex                           (__NR_RK_SYSCALL_BASE+13) 
+#define __NR_rk_vmpcp_mutex                          (__NR_RK_SYSCALL_BASE+14) 
+#define __NR_rk_vmpcp_intervm_mutex                  (__NR_RK_SYSCALL_BASE+15) 
+#define __NR_rk_getcpursv_prev_used_ticks            (__NR_RK_SYSCALL_BASE+16) 
+#define __NR_rk_getcpursv_min_utilization            (__NR_RK_SYSCALL_BASE+17) 
+#define __NR_rk_getcpursv_max_utilization            (__NR_RK_SYSCALL_BASE+18) 
+#define __NR_rk_getcpursv_profile                    (__NR_RK_SYSCALL_BASE+19) 
+#define __NR_rk_mem_reserve_create                   (__NR_RK_SYSCALL_BASE+20) 
+#define __NR_rk_mem_reserve_delete                   (__NR_RK_SYSCALL_BASE+21) 
+#define __NR_rk_mem_reserve_eviction_lock            (__NR_RK_SYSCALL_BASE+22) 
+#define __NR_rk_trace                                (__NR_RK_SYSCALL_BASE+23) 
+#define __NR_rk_get_start_of_next_vcpu_period        (__NR_RK_SYSCALL_BASE+24) 
+#define __NR_rk_vchannel                             (__NR_RK_SYSCALL_BASE+25) 
+#define __NR_rk_vint_register_pseudo_vcpu            (__NR_RK_SYSCALL_BASE+26) 
+#define __NR_rk_vint_finish_intr                     (__NR_RK_SYSCALL_BASE+27) 
+#define __NR_rk_testing                              (__NR_RK_SYSCALL_BASE+28) 
+#endif
+
+
 /*
  * The following SWIs are ARM private.
  */
