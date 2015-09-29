@@ -57,6 +57,7 @@ static int
 mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct ieee802154_local *local = sdata->local;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct sockaddr_ieee802154 *sa =
 		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
@@ -108,6 +109,20 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		wpan_dev->short_addr = cpu_to_le16(sa->addr.short_addr);
 
 		err = mac802154_wpan_update_llsec(dev);
+		break;
+
+	case SIOCSHWTSTAMP:
+		if (local->ops->hwts_set)
+			err = local->ops->hwts_set(&local->hw, ifr);
+		else
+			err = -EOPNOTSUPP;
+		break;
+	
+	case SIOCGHWTSTAMP:
+		if (local->ops->hwts_get)
+			err = local->ops->hwts_get(&local->hw, ifr);
+		else
+			err = -EOPNOTSUPP;
 		break;
 	}
 
@@ -429,6 +444,16 @@ mac802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 	return sizeof(*addr);
 }
 
+static int 
+mac802154_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *info)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(ndev);
+	struct ieee802154_local *local = sdata->local;
+	if (local->ops->hwts_info)
+		return local->ops->hwts_info(&local->hw, info);
+	return -EOPNOTSUPP;
+}
+
 static struct header_ops mac802154_header_ops = {
 	.create		= mac802154_header_create,
 	.parse		= mac802154_header_parse,
@@ -446,6 +471,10 @@ static const struct net_device_ops mac802154_monitor_ops = {
 	.ndo_open		= mac802154_wpan_open,
 	.ndo_stop		= mac802154_slave_close,
 	.ndo_start_xmit		= ieee802154_monitor_start_xmit,
+};
+
+static const struct ethtool_ops mac802154_ethtool_ops = {
+	.get_ts_info = mac802154_get_ts_info,
 };
 
 static void mac802154_wpan_free(struct net_device *dev)
@@ -500,6 +529,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		sdata->dev->header_ops = &mac802154_header_ops;
 		sdata->dev->destructor = mac802154_wpan_free;
 		sdata->dev->netdev_ops = &mac802154_wpan_ops;
+		sdata->dev->ethtool_ops = &mac802154_ethtool_ops;
 		sdata->dev->ml_priv = &mac802154_mlme_wpan;
 		wpan_dev->promiscuous_mode = false;
 

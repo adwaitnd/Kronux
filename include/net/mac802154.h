@@ -110,6 +110,8 @@ struct ieee802154_hw {
 #define IEEE802154_HW_RX_OMIT_CKSUM	0x00000400
 /* Indicates that receiver will not filter frames with bad checksum. */
 #define IEEE802154_HW_RX_DROP_BAD_CKSUM	0x00000800
+/* Indicates that the receiver produces hardware timestamps. */
+#define IEEE802154_HW_TIMESTAMPS 0x00001000
 
 /* Indicates that receiver omits FCS and xmitter will add FCS on it's own. */
 #define IEEE802154_HW_OMIT_CKSUM	(IEEE802154_HW_TX_OMIT_CKSUM | \
@@ -198,6 +200,16 @@ struct ieee802154_hw {
  *
  * set_promiscuous_mode
  *	  Enables or disable promiscuous mode.
+ * 
+ * hwts_get 
+ *    Gets the network device options for hardware timestamping
+ *    
+ * hwts_set 
+ *    Sets the network device options for hardware timestamping
+ *
+ * hwts_info
+ *    Returns the ethtool configuration options for timestamping
+ *    
  */
 struct ieee802154_ops {
 	struct module	*owner;
@@ -223,8 +235,14 @@ struct ieee802154_ops {
 					   u8 min_be, u8 max_be, u8 retries);
 	int		(*set_frame_retries)(struct ieee802154_hw *hw,
 					     s8 retries);
-	int             (*set_promiscuous_mode)(struct ieee802154_hw *hw,
+	int     (*set_promiscuous_mode)(struct ieee802154_hw *hw,
 						const bool on);
+	int		(*hwts_get)(struct ieee802154_hw *hw, 
+						struct ifreq *ifr);
+	int		(*hwts_set)(struct ieee802154_hw *hw, 
+						struct ifreq *ifr);
+	int		(*hwts_info)(struct ieee802154_hw *hw, 
+						struct ethtool_ts_info *info);
 };
 
 /**
