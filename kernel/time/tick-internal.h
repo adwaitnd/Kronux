@@ -1,6 +1,7 @@
 /*
  * tick internal variable and functions used by low/high res code
  */
+
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
 
@@ -8,16 +9,19 @@
 #include "tick-sched.h"
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
-
 # define TICK_DO_TIMER_NONE	-1
 # define TICK_DO_TIMER_BOOT	-2
 
 DECLARE_PER_CPU(struct tick_device, tick_cpu_device);
-#ifdef CONFIG_TIMELINE 
+#ifdef CONFIG_TIMELINE
 //Added by Sandeep D'souza->Timeline Specific Code
+#pragma message "tick-internal.h: timeline set"
 DECLARE_PER_CPU(struct tick_device, tick_cpu_timeline_device);
 //additions end
+#else
+#pragma message "tick-internal.h: timeline not set"
 #endif
+
 extern ktime_t tick_next_period;
 extern ktime_t tick_period;
 extern int tick_do_timer_cpu __read_mostly;
@@ -86,6 +90,7 @@ static inline void tick_set_periodic_handler(struct clock_event_device *dev, int
 # endif /* !CONFIG_GENERIC_CLOCKEVENTS_BROADCAST */
 
 #else /* !GENERIC_CLOCKEVENTS: */
+
 static inline void tick_suspend(void) { }
 static inline void tick_resume(void) { }
 #endif /* !GENERIC_CLOCKEVENTS */
@@ -144,6 +149,7 @@ static inline void tick_nohz_init(void) { }
 #endif
 //Added by Sandeep D'souza
 #ifdef CONFIG_TIMELINE
+#pragma message "tick-internal.h: timeline set 2nd"
 extern void tick_check_new_timeline_device(struct clock_event_device *newdev);
 extern void tick_setup_timeline_device(struct tick_device *td, struct clock_event_device *newdev, int cpu, const struct cpumask *cpumask);
 extern int tick_setup_timeline_oneshot(void (*handler)(struct clock_event_device *));

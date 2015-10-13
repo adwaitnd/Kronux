@@ -541,6 +541,7 @@ void clockevents_config_and_register(struct clock_event_device *dev,
 }
 EXPORT_SYMBOL_GPL(clockevents_config_and_register);
 #ifdef CONFIG_TIMELINE 
+#pragma message "clockevents.c: timeline set"
 //Timeline Specific Code Added by Sandeep D'souza
 /**
  * clockevents_register_device_timeline - register a timeline clock event device

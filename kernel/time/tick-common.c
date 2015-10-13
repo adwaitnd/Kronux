@@ -24,6 +24,13 @@
 
 #include "tick-internal.h"
 
+
+#ifdef CONFIG_TIMELINE
+//Added by Sandeep D'souza->Timeline Specific Code
+#pragma message "tick-common.c: timeline set 1st"
+DECLARE_PER_CPU(struct tick_device, tick_cpu_timeline_device);
+//additions end
+#endif
 /*
  * Tick devices
  */
@@ -498,14 +505,15 @@ void __init tick_init(void)
 }
 //Timeline Specific Code added by Sandeep D'souza
 #ifdef CONFIG_TIMELINE
+#pragma message "tick-common.c: timeline set"
 /*
  * Setup the tick device
  */
-static void tick_setup_timeline_device(struct tick_device *td,
+void tick_setup_timeline_device(struct tick_device *td,
 			      struct clock_event_device *newdev, int cpu,
 			      const struct cpumask *cpumask)
 {
-	ktime_t next_event;
+	//ktime_t next_event;
 	void (*handler)(struct clock_event_device *) = NULL;
 
 	/*
@@ -574,7 +582,7 @@ void tick_check_new_timeline_device(struct clock_event_device *newdev)
 		goto out_bc;
 
 	td = &per_cpu(tick_cpu_timeline_device, cpu);
-	curdev = td->evtdev;
+	//newdev = td->evtdev;
     
 	/* cpu local device ? */
 	//if (!tick_check_percpu(curdev, newdev, cpu))

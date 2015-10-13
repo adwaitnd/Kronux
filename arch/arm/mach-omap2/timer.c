@@ -707,9 +707,7 @@ void __init omap##name##_gptimer_timer_init(void)			\
 	omap_clk_init();					\
 	omap_dmtimer_init();						\
 	omap2_gp_clockevent_init((clkev_nr), clkev_src, clkev_prop);	\
-	#ifdef CONFIG_TIMELINE                                          \
 	omap2_gp_clockevent_init_timeline(4, "timer_sys_ck", NULL);     \
-	#endif                                                          \   
 	omap2_gptimer_clocksource_init((clksrc_nr), clksrc_src,		\
 					clksrc_prop);			\
 }

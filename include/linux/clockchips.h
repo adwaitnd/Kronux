@@ -176,6 +176,7 @@ extern void clockevents_config_and_register(struct clock_event_device *dev,
 					    unsigned long max_delta);
 
 #ifdef CONFIG_TIMELINE 
+#pragma message "clockchips.h: timeline set"
 //Aded by Sandeep D'souza to clockevents.c - Timeline Specific Functions
 extern void clockevents_config_and_register_timeline(struct clock_event_device *dev,
 					    u32 freq, unsigned long min_delta,

@@ -104,6 +104,7 @@ int tick_oneshot_mode_active(void)
 }
 //Added by Sandeep D'souza Timeline Code
 #ifdef CONFIG_TIMELINE
+#pragma message "tick-oneshot.c: timeline set"
 /**
  * tick_switch_to_oneshot - switch to oneshot mode
  */
