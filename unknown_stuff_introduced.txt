@@ -1,0 +1,4 @@
+This is to keep track of unknown stuff introduced during the OS port to Beaglebone
+
+mm/page_alloc.c:6155 CONFIG_RK changed to CONFIG_RK_MEM
+Still have problems with compiling kernel/sched/core.c
