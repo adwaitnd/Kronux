@@ -116,15 +116,15 @@ int tick_setup_timeline_oneshot(void (*handler)(struct clock_event_device *))
 	if (!dev || !(dev->features & CLOCK_EVT_FEAT_ONESHOT) ||
 		    !tick_device_is_functional(dev)) {
 
-		printk(KERN_INFO "Clockevents: "
+		printk(KERN_INFO "timeline: Clockevents: "
 		       "could not switch to one-shot mode:");
 		if (!dev) {
-			printk(" no tick device\n");
+			printk(" timeline: no tick device\n");
 		} else {
 			if (!tick_device_is_functional(dev))
-				printk(" %s is not functional.\n", dev->name);
+				printk(" timeline: %s is not functional.\n", dev->name);
 			else
-				printk(" %s does not support one-shot mode.\n",
+				printk(" timeline: %s does not support one-shot mode.\n",
 				       dev->name);
 		}
 		return -EINVAL;
@@ -134,6 +134,7 @@ int tick_setup_timeline_oneshot(void (*handler)(struct clock_event_device *))
 	dev->event_handler = handler;
 	clockevents_set_state(dev, CLOCK_EVT_STATE_ONESHOT);
 	//tick_broadcast_switch_to_oneshot();
+	printk(KERN_EMERG "timeline: tick device setup\nmode: %d\n");
 	return 0;
 }
 #endif

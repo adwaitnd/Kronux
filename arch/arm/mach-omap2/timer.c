@@ -368,6 +368,7 @@ static struct clock_event_device clockevent_timeline;
 
 static irqreturn_t omap2_gp_timer_interrupt_timeline(int irq, void *dev_id)
 {
+	printk(KERN_EMERG "timeline: interrupt %d  dev_id=%p\n", irq, dev_id);
 	struct clock_event_device *evt = &clockevent_timeline;
 
 	__omap_dm_timer_write_status(&clkev_timeline, OMAP_TIMER_INT_OVERFLOW);
@@ -385,6 +386,7 @@ static struct irqaction omap2_gp_timer_irq_timeline = {
 static int omap2_gp_timer_set_next_event_timeline(unsigned long cycles,
 					 struct clock_event_device *evt)
 {
+	printk(KERN_EMERG "timeline: set next event num cycles %lu \n", cycles);
 	__omap_dm_timer_load_start(&clkev_timeline, OMAP_TIMER_CTRL_ST,
 				   0xffffffff - cycles, OMAP_TIMER_POSTED);
 
@@ -395,7 +397,7 @@ static void omap2_gp_timer_set_mode_timeline(enum clock_event_mode mode,
 				    struct clock_event_device *evt)
 {
 	u32 period;
-
+	printk(KERN_EMERG "timeline: set timeline mode %d\n", mode);
 	__omap_dm_timer_stop(&clkev_timeline, OMAP_TIMER_POSTED, clkev_timeline.rate);
 
 	switch (mode) {
@@ -430,6 +432,7 @@ static void __init omap2_gp_clockevent_init_timeline(int gptimer_id,
 						const char *fck_source,
 						const char *property)
 {
+	printk(KERN_EMERG "timeline: clockevent initialized %lu \n", gptimer_id);
 	int res;
 
 	clkev_timeline.id = gptimer_id;
@@ -707,7 +710,8 @@ void __init omap##name##_gptimer_timer_init(void)			\
 	omap_clk_init();					\
 	omap_dmtimer_init();						\
 	omap2_gp_clockevent_init((clkev_nr), clkev_src, clkev_prop);	\
-	omap2_gp_clockevent_init_timeline(4, "timer_sys_ck", NULL);     \
+	printk(KERN_EMERG "timeline: omap3_gptimer fun being executed, now init timeline_timer\n");             \
+	omap2_gp_clockevent_init_timeline(4, clkev_src, NULL);     \
 	omap2_gptimer_clocksource_init((clksrc_nr), clksrc_src,		\
 					clksrc_prop);			\
 }
@@ -743,6 +747,8 @@ OMAP_SYS_32K_TIMER_INIT(3_secure, 12, "secure_32k_fck", "ti,timer-secure",
 	defined(CONFIG_SOC_AM43XX)
 OMAP_SYS_GP_TIMER_INIT(3, 2, "timer_sys_ck", NULL,
 		       1, "timer_sys_ck", "ti,timer-alwon");
+
+
 #endif
 
 #if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \

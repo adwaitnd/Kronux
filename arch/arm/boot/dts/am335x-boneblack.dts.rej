@@ -1,0 +1,244 @@
+--- KERNEL/arch/arm/boot/dts/am335x-boneblack.dts	2015-07-21 10:10:33.000000000 -0700
++++ KERNEL/arch/arm/boot/dts/am335x-boneblack.dts	2015-08-25 17:00:15.872152999 -0700
+@@ -34,49 +34,207 @@
+ };
+ 
+ &am33xx_pinmux {
+-	nxp_hdmi_bonelt_pins: nxp_hdmi_bonelt_pins {
+-		pinctrl-single,pins = <
+-			0x1b0 0x03      /* xdma_event_intr0, OMAP_MUX_MODE3 | AM33XX_PIN_OUTPUT */
+-			0xa0 0x08       /* lcd_data0.lcd_data0, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xa4 0x08       /* lcd_data1.lcd_data1, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xa8 0x08       /* lcd_data2.lcd_data2, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xac 0x08       /* lcd_data3.lcd_data3, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xb0 0x08       /* lcd_data4.lcd_data4, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xb4 0x08       /* lcd_data5.lcd_data5, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xb8 0x08       /* lcd_data6.lcd_data6, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xbc 0x08       /* lcd_data7.lcd_data7, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xc0 0x08       /* lcd_data8.lcd_data8, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xc4 0x08       /* lcd_data9.lcd_data9, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xc8 0x08       /* lcd_data10.lcd_data10, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xcc 0x08       /* lcd_data11.lcd_data11, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xd0 0x08       /* lcd_data12.lcd_data12, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xd4 0x08       /* lcd_data13.lcd_data13, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xd8 0x08       /* lcd_data14.lcd_data14, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xdc 0x08       /* lcd_data15.lcd_data15, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT | AM33XX_PULL_DISA */
+-			0xe0 0x00       /* lcd_vsync.lcd_vsync, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT */
+-			0xe4 0x00       /* lcd_hsync.lcd_hsync, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT */
+-			0xe8 0x00       /* lcd_pclk.lcd_pclk, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT */
+-			0xec 0x00       /* lcd_ac_bias_en.lcd_ac_bias_en, OMAP_MUX_MODE0 | AM33XX_PIN_OUTPUT */
+-		>;
++
++	/* For a uart device */
++	uart5_pins: pinmux_uart5_pins {
++    	pinctrl-single,pins = <
++    		0xC4 0x24 		/* P8.38 uart5_rxd MODE6 INPUT (RX)  */
++    		0xC0 0x04 		/* P8.37 uart5_txd MODE6 OUTPUT (TX) */
++    	>;
+ 	};
+-	nxp_hdmi_bonelt_off_pins: nxp_hdmi_bonelt_off_pins {
+-		pinctrl-single,pins = <
+-			0x1b0 0x03      /* xdma_event_intr0, OMAP_MUX_MODE3 | AM33XX_PIN_OUTPUT */
++
++	/* For SPI0 device */
++	spi0_pins_s0: spi0_pins_s0 {
++	    	pinctrl-single,pins = <
++			0x040 0x17      /* SLPTR P9.15 O_PULLUP | MODE7-GPIO1[16] */
++			0x04c 0x17      /* RSTN  P9.16 O_PULLUP | MODE7-GPIO1[19] */
++			0x1a4 0x37      /* IRQ   P9.27 I_PULLUP | MODE7-GPIO3[19] */
++			0x150 0x30      /* CLK   P9.22 spi0_sclk, I_PULLUP | MODE0 */
++			0x154 0x10      /* D0    P9.21 MOSI spi0_d0, O_PULLUP | MODE0 */
++			0x158 0x30      /* D1    P9.18 MISO spi0_d1, I_PULLUP | MODE0 */
++			0x15c 0x10      /* SS    P9.17 spi0_cs0, O_PULLUP | MODE0 */
++	   	 >;
++	};
++
++	/* For SPI1 device */
++	spi1_pins_s0: spi1_pins_s0 {
++        pinctrl-single,pins = <
++         	0x038 0x17  	/* RESET P8.16 O_PULLUP | MODE7-GPIO1[14] */
++          	0x03c 0x37  	/* IRQ P8.15 I_PULLUP | MODE7-GPIO1[15] */
++            0x190 0x33      /* P9.31 CLK INPUT_PULLUP | MODE3 */
++            0x194 0x33      /* P9.29 MISO INPUT_PULLUP | MODE3 */
++            0x198 0x13      /* P9.30 MOSI OUTPUT_PULLUP | MODE3 */
++            0x19c 0x13      /* P9.28 CS0  OUTPUT_PULLUP | MODE3 */
+ 		>;
+ 	};
++
++	/* For an i2c device */
++    bb_i2c2_pins: pinmux_bb_i2c2_pins {
++	   	pinctrl-single,pins = <
++			0x178 0x73      /* I2C2_SDA, SLEWCTRL_SLOW | INPUT_PULLUP | MODE3 */
++			0x17c 0x73      /* I2C2_SCL, SLEWCTRL_SLOW | INPUT_PULLUP | MODE3 */	
++	   	>;
++	};
++
++	/* Timer configuration */
++	timer_pins: pinmux_timer_pins {
++	   	pinctrl-single,pins = <
++			0x90  0x22 		/* P8.7   MODE2 TIMER4 - 24MHz CAPTURE   */
++			0x98  0x02 		/* P8.10  MODE2 TIMER5 - 24MHz INTERRUPT */
++			0x9C  0x22 		/* P8.9   MODE2 TIMER6 - TCLKIN CAPTURE  */
++			0x94  0x02 		/* P8.8   MODE2 TIMER7 - TCLKIN INTERRUPT */
++			0x1b4 0x2A 		/* P9.41A MODE2 TIMER4 TCLKIN */
++			0x1a8 0x0F 		/* P9.41B MODE7 TIMER4 INPUT (high-Z, tied to P9.41A) - conflicts with HDMI */
++    	>;
++	};
+ };
+ 
+ &lcdc {
+ 	status = "okay";
+ };
+ 
++&rtc {
++	system-power-controller;
++};
++
++&uart5 {
++    status = "okay";
++    pinctrl-names = "default";
++    pinctrl-0 = <&uart5_pins>;
++};
++
++&epwmss0 {
++	eqep0: eqep@0x48300180 {
++		compatible = "ti,am33xx-eqep";
++		reg = <0x48300180 0x80>;
++		interrupt-parent = <&intc>;
++		interrupts = <79>;
++		ti,hwmods = "eqep0";
++		status = "disabled";
++	};
++};
++
++&epwmss1 {
++	eqep1: eqep@0x48302180 {
++		compatible = "ti,am33xx-eqep";
++		reg = <0x48302180 0x80>;
++		interrupt-parent = <&intc>;
++		interrupts = <88>;
++		ti,hwmods = "eqep1";
++		status = "disabled";
++	};
++};
++ 
++&epwmss2 {
++	eqep2: eqep@0x48304180 {
++		compatible = "ti,am33xx-eqep";
++		reg = <0x48304180 0x80>;
++		interrupt-parent = <&intc>;
++		interrupts = <89>;
++		ti,hwmods = "eqep2";
++		status = "disabled";
++	};
++};
++
++&spi0 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	status = "okay";
++	pinctrl-names = "default";
++	pinctrl-0 = <&spi0_pins_s0>;
++	ti,pindir-d0-out-d1-in = <1>;
++	at86rf233@0 {
++		spi-max-frequency = <7500000>;
++		reg = <0>;
++		compatible = "atmel,at86rf233";
++		interrupts = <19 1>;
++		interrupt-parent = <&gpio3>;
++		reset-gpio = <&gpio1 19 0>;
++		sleep-gpio = <&gpio1 16 0>;
++	};
++};
++
++&spi1 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	status = "okay";
++	pinctrl-names = "default";
++	pinctrl-0 = <&spi1_pins_s0>;
++	dw1000@1 {
++		spi-max-frequency = <5000000>;
++		reg = <0>;
++		compatible = "decawave,dw1000";
++		interrupts = <15 2>;
++		interrupt-parent = <&gpio1>;
++		reset-gpio = <&gpio1 14 0>;
++	};
++};
++
++&i2c2 {
++	#address-cells = <1>;
++	#size-cells = <0>;
++	status = "okay";
++	pinctrl-names = "default";
++	pinctrl-0 = <&bb_i2c2_pins>;
++	clock-frequency = <100000>;
++};
++
++/* 	The ROSELINE kernel module support two channels for low-latency sensing and 
++   	generation of events, known as IOTIMER_A and IOTIMER_B. Each IOTIMER is
++   	comprised of two timers -- both driven from the same oscillator -- one of
++   	which is used in "capture mode" to time stamp incoming interrupts, while
++   	the other is used in "compare mode" to produce outgoing interrupts.
++
++   	IOTIMERS are configured in the following way: 
++
++   		iotimer-x = <t1 t2 a1 a2>; 
++
++   	Where:
++
++	   	* x  : [uint32_t] a | b
++	   	* t1 : [uint32_t] &timer4 | &timer5 | &timer6 | &timer7
++	   	* t2 : [uint32_t] &timer4 | &timer5 | &timer6 | &timer7
++	   	* a1 : [uint32_t] 0 | 1 | 2 (0=TCLKIN, 1=24MHz, 2=32kHz)
++	   	* a2 : [uint32_t] 0 | 1 | 2 | 3 (0=RISING, 1=FALLING, 2=BOTH, 3=NONE)
++
++	NOTE: You must make sure to pinmux the timer pins correctly. For example, if
++	you have selected the following configuration:
++
++		iotimer_a = <&timer4 &timer5 1 1>;
++		iotimer_b = <&timer6 &timer7 1 3>;
++
++	Then you must configure timer4 / timer6 as inputs and timer5 / timer7 as 
++	outputs in the following way. Note that each pin can be configured to be
++	pulled high or low, and your choice must match the the a2 and a3 arguments!
++
++		0x90  0x22 		-> P8.7   FAST PDI MODE2 TIMER4 - INTERNAL CAPTURE    
++		0x98  0x02 		-> P8.10  FAST PDO MODE2 TIMER5 - INTERNAL COMPARE  
++		0x9C  0x22 		-> P8.9   FAST PDI MODE2 TIMER6 - TCLKIN CAPTURE   
++		0x94  0x02 		-> P8.8   FAST PDO MODE2 TIMER7 - TCLKIN COMPARE
++
++	Finally, note that a clocksource will be produced for both IOTIMERS. You can
++	switch to this clocksource from user space.
++
++	To see the available timers:
++
++		cat /sys/bus/clocksource/devices/clocksource0/available_clocksource
++
++	To see which is currently being used
++
++		cat /sys/bus/clocksource/devices/clocksource0/current_clocksource
++
++	To switch timers
++
++		echo iotimer_a > /sys/bus/clocksource/devices/clocksource0/current_clocksource
++*/
++
+ / {
+-	hdmi {
+-		compatible = "ti,tilcdc,slave";
+-		i2c = <&i2c0>;
+-		pinctrl-names = "default", "off";
+-		pinctrl-0 = <&nxp_hdmi_bonelt_pins>;
+-		pinctrl-1 = <&nxp_hdmi_bonelt_off_pins>;
++	roseline {
++		compatible = "roseline";
+ 		status = "okay";
++		iotimer_a = <&timer4 &timer5 1 0>;
++		iotimer_b = <&timer6 &timer7 1 0>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&timer_pins>;
+ 	};
+-};
++};
