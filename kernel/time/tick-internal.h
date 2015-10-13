@@ -153,4 +153,5 @@ static inline void tick_nohz_init(void) { }
 extern void tick_check_new_timeline_device(struct clock_event_device *newdev);
 extern void tick_setup_timeline_device(struct tick_device *td, struct clock_event_device *newdev, int cpu, const struct cpumask *cpumask);
 extern int tick_setup_timeline_oneshot(void (*handler)(struct clock_event_device *));
+extern int tick_program_timeline_event(ktime_t expires, int force);
 #endif

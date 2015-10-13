@@ -566,7 +566,7 @@ void tick_setup_timeline_device(struct tick_device *td,
 	//if (td->mode == TICKDEV_MODE_PERIODIC)
 	//	tick_setup_periodic(newdev, 0);
 	//else
-		//tick_setup_oneshot(newdev, handler, next_event);
+	tick_setup_timeline_oneshot(handler);
 }
 /*
  * Check, if the new registered device should be used. Called with

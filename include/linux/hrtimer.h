@@ -452,3 +452,8 @@ extern void __init hrtimers_init(void);
 extern void sysrq_timer_list_show(void);
 
 #endif
+#ifdef CONFIG_TIMELINE
+//Code added by Sandeep D'souza - Dummy Timeline Interrupt
+extern void timeline_interrupt(struct clock_event_device *dev);
+#endif
+

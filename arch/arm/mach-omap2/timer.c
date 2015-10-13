@@ -248,6 +248,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 			return -ENODEV;
 
 		of_property_read_string_index(np, "ti,hwmods", 0, &oh_name);
+		printk(KERN_EMERG "omap_dm_timer_init_one:for timer_id %d Timer %s Selected\n", timer->id, oh_name);
 		if (!oh_name)
 			return -ENODEV;
 
@@ -368,7 +369,7 @@ static struct clock_event_device clockevent_timeline;
 
 static irqreturn_t omap2_gp_timer_interrupt_timeline(int irq, void *dev_id)
 {
-	printk(KERN_EMERG "timeline: interrupt %d  dev_id=%p\n", irq, dev_id);
+	printk(KERN_WARNING "timeline: interrupt %d  dev_id=%p\n", irq, dev_id);
 	struct clock_event_device *evt = &clockevent_timeline;
 
 	__omap_dm_timer_write_status(&clkev_timeline, OMAP_TIMER_INT_OVERFLOW);
@@ -432,12 +433,13 @@ static void __init omap2_gp_clockevent_init_timeline(int gptimer_id,
 						const char *fck_source,
 						const char *property)
 {
-	printk(KERN_EMERG "timeline: clockevent initialized %lu \n", gptimer_id);
+	printk(KERN_EMERG "timeline: clockevent being initialized %lu \n", gptimer_id);
 	int res;
 
 	clkev_timeline.id = gptimer_id;
 	clkev_timeline.errata = omap_dm_timer_get_errata();
-
+	printk(KERN_EMERG "timeline: timer id =  %d\n", clkev_timeline.id);
+	printk(KERN_EMERG "timeline: clock event name: %s\n", clockevent_timeline.name);
 	/*
 	 * For clock-event timers we never read the timer counter and
 	 * so we are not impacted by errata i103 and i767. Therefore,
@@ -448,7 +450,8 @@ static void __init omap2_gp_clockevent_init_timeline(int gptimer_id,
 	res = omap_dm_timer_init_one(&clkev_timeline, fck_source, property,
 				     &clockevent_timeline.name, OMAP_TIMER_POSTED);
 	BUG_ON(res);
-
+	printk(KERN_EMERG "timeline: after init timer id =  %d\n", clkev_timeline.id);
+	printk(KERN_EMERG "timeline: clock event name after init: %s\n", clockevent_timeline.name);
 	omap2_gp_timer_irq_timeline.dev_id = &clkev_timeline;
 	setup_irq(clkev_timeline.irq, &omap2_gp_timer_irq_timeline);
 
@@ -463,8 +466,16 @@ static void __init omap2_gp_clockevent_init_timeline(int gptimer_id,
 	pr_info("OMAP clockevent source: %s at %lu Hz\n", clockevent_timeline.name,
 		clkev_timeline.rate);
 }
-//Section added by Sandeep D'souza ends
 #endif
+static void __init omap2_init_timeline(const char *fck_source)
+{
+	#ifdef CONFIG_TIMELINE
+		omap2_gp_clockevent_init_timeline(3, fck_source, NULL);     
+	#endif
+}
+
+//Section added by Sandeep D'souza ends
+
 /* Clocksource code */
 static struct omap_dm_timer clksrc;
 static bool use_gptimer_clksrc __initdata;
@@ -710,8 +721,8 @@ void __init omap##name##_gptimer_timer_init(void)			\
 	omap_clk_init();					\
 	omap_dmtimer_init();						\
 	omap2_gp_clockevent_init((clkev_nr), clkev_src, clkev_prop);	\
-	printk(KERN_EMERG "timeline: omap3_gptimer fun being executed, now init timeline_timer\n");             \
-	omap2_gp_clockevent_init_timeline(4, clkev_src, NULL);     \
+	printk(KERN_EMERG "timeline: omap3_gptimer func being executed, now init timeline_timer\n");             \
+	omap2_init_timeline(clkev_src);										\
 	omap2_gptimer_clocksource_init((clksrc_nr), clksrc_src,		\
 					clksrc_prop);			\
 }
