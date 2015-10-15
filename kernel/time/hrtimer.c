@@ -1555,6 +1555,7 @@ out:
 	return ret;
 }
 
+
 long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 		       const enum hrtimer_mode mode, const clockid_t clockid)
 {
@@ -1861,7 +1862,7 @@ void timeline_interrupt(struct clock_event_device *dev)
 	rqtp.tv_sec = 1;
 	rqtp.tv_nsec = 0;
     now = hrtimer_update_base(cpu_base);
-	printk(KERN_WARNING "/*************timeline: interrupt called ******************/\n");
+	printk(KERN_INFO "/*************timeline: interrupt called ******************/\n");
 	expires_next = ktime_add(now, timespec_to_ktime(rqtp));
 	tick_program_timeline_event(expires_next, 1);
 }

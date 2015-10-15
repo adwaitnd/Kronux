@@ -514,7 +514,7 @@ void tick_setup_timeline_device(struct tick_device *td,
 			      const struct cpumask *cpumask)
 {
 	//ktime_t next_event;
-	printk(KERN_EMERG "timeline: tick device being setup\n");
+	printk(KERN_INFO "timeline: tick device being setup\n");
 	void (*handler)(struct clock_event_device *) = NULL;
 
 	/*
@@ -575,7 +575,7 @@ void tick_setup_timeline_device(struct tick_device *td,
 void tick_check_new_timeline_device(struct clock_event_device *newdev)
 {
 	//struct clock_event_device *curdev;
-	printk(KERN_EMERG "timeline: new timeline device properties\nname: %s\nrating: %d\nirq: %d\nmult: %u\nshift: %u\nmode: %d\nstate: %d\n", newdev->name,newdev->rating,newdev->irq,newdev->mult, newdev->shift, newdev->mode, newdev->state);
+	printk(KERN_INFO "timeline: new timeline device properties\nname: %s\nrating: %d\nirq: %d\nmult: %u\nshift: %u\nmode: %d\nstate: %d\n", newdev->name,newdev->rating,newdev->irq,newdev->mult, newdev->shift, newdev->mode, newdev->state);
 	struct tick_device *td;
 	int cpu;
 
