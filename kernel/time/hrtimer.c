@@ -1555,6 +1555,7 @@ out:
 	return ret;
 }
 
+
 long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 		       const enum hrtimer_mode mode, const clockid_t clockid)
 {
@@ -1849,3 +1850,20 @@ int __sched schedule_hrtimeout(ktime_t *expires,
 	return schedule_hrtimeout_range(expires, 0, mode);
 }
 EXPORT_SYMBOL_GPL(schedule_hrtimeout);
+
+#ifdef CONFIG_TIMELINE
+//Code added by Sandeep D'souza - Dummy Timeline Interrupt
+void timeline_interrupt(struct clock_event_device *dev)
+{
+	struct timespec rqtp;
+	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
+	ktime_t now;
+	ktime_t expires_next;
+	rqtp.tv_sec = 1;
+	rqtp.tv_nsec = 0;
+    now = hrtimer_update_base(cpu_base);
+	printk(KERN_INFO "/*************timeline: interrupt called ******************/\n");
+	expires_next = ktime_add(now, timespec_to_ktime(rqtp));
+	tick_program_timeline_event(expires_next, 1);
+}
+#endif

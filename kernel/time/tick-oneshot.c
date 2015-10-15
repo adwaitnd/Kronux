@@ -105,6 +105,13 @@ int tick_oneshot_mode_active(void)
 //Added by Sandeep D'souza Timeline Code
 #ifdef CONFIG_TIMELINE
 #pragma message "tick-oneshot.c: timeline set"
+/*Used to program when the next interrupt should fire*/
+int tick_program_timeline_event(ktime_t expires, int force)
+{
+	struct clock_event_device *dev = __this_cpu_read(tick_cpu_timeline_device.evtdev);
+
+	return clockevents_program_event(dev, expires, force);
+}
 /**
  * tick_switch_to_oneshot - switch to oneshot mode
  */
@@ -135,6 +142,9 @@ int tick_setup_timeline_oneshot(void (*handler)(struct clock_event_device *))
 	clockevents_set_state(dev, CLOCK_EVT_STATE_ONESHOT);
 	//tick_broadcast_switch_to_oneshot();
 	printk(KERN_EMERG "timeline: tick device setup\nmode: %d\n");
+	//Remove This Line Later
+	dev->event_handler = timeline_interrupt;
+	timeline_interrupt(dev);
 	return 0;
 }
 #endif

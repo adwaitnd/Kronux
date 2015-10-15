@@ -248,6 +248,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 			return -ENODEV;
 
 		of_property_read_string_index(np, "ti,hwmods", 0, &oh_name);
+		printk(KERN_INFO "omap_dm_timer_init_one:for timer_id %d Timer %s Selected\n", timer->id, oh_name);
 		if (!oh_name)
 			return -ENODEV;
 
@@ -368,7 +369,7 @@ static struct clock_event_device clockevent_timeline;
 
 static irqreturn_t omap2_gp_timer_interrupt_timeline(int irq, void *dev_id)
 {
-	printk(KERN_EMERG "timeline: interrupt %d  dev_id=%p\n", irq, dev_id);
+	printk(KERN_INFO "timeline: interrupt %d  dev_id=%p\n", irq, dev_id);
 	struct clock_event_device *evt = &clockevent_timeline;
 
 	__omap_dm_timer_write_status(&clkev_timeline, OMAP_TIMER_INT_OVERFLOW);
@@ -386,7 +387,7 @@ static struct irqaction omap2_gp_timer_irq_timeline = {
 static int omap2_gp_timer_set_next_event_timeline(unsigned long cycles,
 					 struct clock_event_device *evt)
 {
-	printk(KERN_EMERG "timeline: set next event num cycles %lu \n", cycles);
+	printk(KERN_INFO "timeline: set next event num cycles %lu \n", cycles);
 	__omap_dm_timer_load_start(&clkev_timeline, OMAP_TIMER_CTRL_ST,
 				   0xffffffff - cycles, OMAP_TIMER_POSTED);
 
@@ -397,7 +398,7 @@ static void omap2_gp_timer_set_mode_timeline(enum clock_event_mode mode,
 				    struct clock_event_device *evt)
 {
 	u32 period;
-	printk(KERN_EMERG "timeline: set timeline mode %d\n", mode);
+	printk(KERN_INFO "timeline: set timeline mode %d\n", mode);
 	__omap_dm_timer_stop(&clkev_timeline, OMAP_TIMER_POSTED, clkev_timeline.rate);
 
 	switch (mode) {
@@ -425,19 +426,166 @@ static struct clock_event_device clockevent_timeline = {
 	.rating		= 300,
 	.set_next_event	= omap2_gp_timer_set_next_event_timeline,
 	.set_mode	= omap2_gp_timer_set_mode_timeline,
-	.name = "timeline_clockevent",
+	.name = "timer4",
 };
+static struct device_node * __init omap_get_timer_dt_timeline(const struct of_device_id *match,
+						     const char *property, int gptimer_id)
+{
+	struct device_node *np; 
+	char timer_name[10];
+	const char *oh_name = NULL;
+	sprintf(timer_name,"timer%d", gptimer_id);
+	for_each_matching_node(np, match) {
+		if (!of_device_is_available(np))
+			continue;
 
+		if (property && !of_get_property(np, property, NULL))
+			continue;
+
+		if (!property && (of_get_property(np, "ti,timer-alwon", NULL) ||
+				  of_get_property(np, "ti,timer-dsp", NULL) ||
+				  of_get_property(np, "ti,timer-pwm", NULL) ||
+				  of_get_property(np, "ti,timer-secure", NULL)))
+			continue;
+		of_property_read_string_index(np, "ti,hwmods", 0, &oh_name);
+		printk(KERN_INFO "timeline: %s\n", oh_name);
+		if(strcmp(oh_name, timer_name) == 0)
+		{
+			of_add_property(np, &device_disabled);
+			return np;
+		}
+	}
+	printk(KERN_INFO "timeline: Could not get requested timer, choosing an alternate\n");
+	/*Could not get a timer requested take another one */
+	for_each_matching_node(np, match) {
+		if (!of_device_is_available(np))
+			continue;
+
+		if (property && !of_get_property(np, property, NULL))
+			continue;
+
+		if (!property && (of_get_property(np, "ti,timer-alwon", NULL) ||
+				  of_get_property(np, "ti,timer-dsp", NULL) ||
+				  of_get_property(np, "ti,timer-pwm", NULL) ||
+				  of_get_property(np, "ti,timer-secure", NULL)))
+			continue;
+		
+		of_add_property(np, &device_disabled);
+		return np;
+		
+	}
+
+	return NULL;
+}
+static int __init omap_dm_timer_init_one_timeline(struct omap_dm_timer *timer,
+					 const char *fck_source,
+					 const char *property,
+					 const char **timer_name,
+					 int posted)
+{
+	char name[10]; /* 10 = sizeof("gptXX_Xck0") */
+	const char *oh_name = NULL;
+	struct device_node *np;
+	struct omap_hwmod *oh;
+	struct resource irq, mem;
+	struct clk *src;
+	int r = 0;
+
+	if (of_have_populated_dt()) {
+		np = omap_get_timer_dt_timeline(omap_timer_match, property, timer->id);
+		if (!np)
+			return -ENODEV;
+
+		of_property_read_string_index(np, "ti,hwmods", 0, &oh_name);
+		printk(KERN_INFO "omap_dm_timer_init_one:for timer_id %d %s selected\n", timer->id, oh_name);
+		if (!oh_name)
+			return -ENODEV;
+
+		timer->irq = irq_of_parse_and_map(np, 0);
+		if (!timer->irq)
+			return -ENXIO;
+
+		timer->io_base = of_iomap(np, 0);
+
+		of_node_put(np);
+	} else {
+		if (omap_dm_timer_reserve_systimer(timer->id))
+			return -ENODEV;
+
+		sprintf(name, "timer%d", timer->id);
+		oh_name = name;
+	}
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh)
+		return -ENODEV;
+
+	*timer_name = oh->name;
+
+	if (!of_have_populated_dt()) {
+		r = omap_hwmod_get_resource_byname(oh, IORESOURCE_IRQ, NULL,
+						   &irq);
+		if (r)
+			return -ENXIO;
+		timer->irq = irq.start;
+
+		r = omap_hwmod_get_resource_byname(oh, IORESOURCE_MEM, NULL,
+						   &mem);
+		if (r)
+			return -ENXIO;
+
+		/* Static mapping, never released */
+		timer->io_base = ioremap(mem.start, mem.end - mem.start);
+	}
+
+	if (!timer->io_base)
+		return -ENXIO;
+
+	/* After the dmtimer is using hwmod these clocks won't be needed */
+	timer->fclk = clk_get(NULL, omap_hwmod_get_main_clk(oh));
+	if (IS_ERR(timer->fclk))
+		return PTR_ERR(timer->fclk);
+
+	src = clk_get(NULL, fck_source);
+	if (IS_ERR(src))
+		return PTR_ERR(src);
+
+	r = clk_set_parent(timer->fclk, src);
+	if (r < 0) {
+		pr_warn("%s: %s cannot set source\n", __func__, oh->name);
+		clk_put(src);
+		return r;
+	}
+
+	clk_put(src);
+
+	omap_hwmod_setup_one(oh_name);
+	omap_hwmod_enable(oh);
+	__omap_dm_timer_init_regs(timer);
+
+	if (posted)
+		__omap_dm_timer_enable_posted(timer);
+
+	/* Check that the intended posted configuration matches the actual */
+	if (posted != timer->posted)
+		return -EINVAL;
+
+	timer->rate = clk_get_rate(timer->fclk);
+	timer->reserved = 1;
+
+	return r;
+}
 static void __init omap2_gp_clockevent_init_timeline(int gptimer_id,
 						const char *fck_source,
 						const char *property)
 {
-	printk(KERN_EMERG "timeline: clockevent initialized %lu \n", gptimer_id);
+	printk(KERN_INFO "timeline: clockevent being initialized %lu \n", gptimer_id);
 	int res;
 
 	clkev_timeline.id = gptimer_id;
 	clkev_timeline.errata = omap_dm_timer_get_errata();
-
+	printk(KERN_INFO "timeline: timer id =  %d\n", clkev_timeline.id);
+	printk(KERN_INFO "timeline: clock event name: %s\n", clockevent_timeline.name);
 	/*
 	 * For clock-event timers we never read the timer counter and
 	 * so we are not impacted by errata i103 and i767. Therefore,
@@ -445,10 +593,11 @@ static void __init omap2_gp_clockevent_init_timeline(int gptimer_id,
 	 */
 	__omap_dm_timer_override_errata(&clkev_timeline, OMAP_TIMER_ERRATA_I103_I767);
 
-	res = omap_dm_timer_init_one(&clkev_timeline, fck_source, property,
+	res = omap_dm_timer_init_one_timeline(&clkev_timeline, fck_source, property,
 				     &clockevent_timeline.name, OMAP_TIMER_POSTED);
 	BUG_ON(res);
-
+	printk(KERN_INFO "timeline: after init timer id =  %d\n", clkev_timeline.id);
+	printk(KERN_INFO "timeline: clock event name after init: %s\n", clockevent_timeline.name);
 	omap2_gp_timer_irq_timeline.dev_id = &clkev_timeline;
 	setup_irq(clkev_timeline.irq, &omap2_gp_timer_irq_timeline);
 
@@ -463,8 +612,16 @@ static void __init omap2_gp_clockevent_init_timeline(int gptimer_id,
 	pr_info("OMAP clockevent source: %s at %lu Hz\n", clockevent_timeline.name,
 		clkev_timeline.rate);
 }
-//Section added by Sandeep D'souza ends
 #endif
+static void __init omap2_init_timeline(const char *fck_source)
+{
+	#ifdef CONFIG_TIMELINE
+		omap2_gp_clockevent_init_timeline(4, fck_source, "ti,timer-pwm");     
+	#endif
+}
+
+//Section added by Sandeep D'souza ends
+
 /* Clocksource code */
 static struct omap_dm_timer clksrc;
 static bool use_gptimer_clksrc __initdata;
@@ -710,10 +867,10 @@ void __init omap##name##_gptimer_timer_init(void)			\
 	omap_clk_init();					\
 	omap_dmtimer_init();						\
 	omap2_gp_clockevent_init((clkev_nr), clkev_src, clkev_prop);	\
-	printk(KERN_EMERG "timeline: omap3_gptimer fun being executed, now init timeline_timer\n");             \
-	omap2_gp_clockevent_init_timeline(4, clkev_src, NULL);     \
 	omap2_gptimer_clocksource_init((clksrc_nr), clksrc_src,		\
 					clksrc_prop);			\
+	printk(KERN_INFO "timeline: omap3_gptimer func being executed, now init timeline_timer\n");             \
+	omap2_init_timeline(clkev_src);										\
 }
 
 #define OMAP_SYS_32K_TIMER_INIT(name, clkev_nr, clkev_src, clkev_prop,	\
