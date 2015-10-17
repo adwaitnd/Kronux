@@ -59,7 +59,7 @@ DEFINE_PER_CPU(struct task_struct *, ksoftirqd);
 
 const char * const softirq_to_name[NR_SOFTIRQS] = {
 	"HI", "TIMER", "NET_TX", "NET_RX", "BLOCK", "BLOCK_IOPOLL",
-	"TASKLET", "SCHED", "HRTIMER", "RCU"
+	"TASKLET", "SCHED", "HRTIMER","TIMELINE_HRTIMER", "RCU"
 };
 
 /*
@@ -630,6 +630,58 @@ void tasklet_hrtimer_init(struct tasklet_hrtimer *ttimer,
 	ttimer->function = function;
 }
 EXPORT_SYMBOL_GPL(tasklet_hrtimer_init);
+#ifdef CONFIG_TIMELINE
+/*
+ * tasklet_timeline_hritmer
+ */
+
+/*
+ * The trampoline is called when the timeline_hrtimer expires. It schedules a tasklet
+ * to run __tasklet_timeline_hrtimer_trampoline() which in turn will call the intended
+ * timeline_hrtimer callback, but from softirq context.
+ */
+static enum timeline_hrtimer_restart __timeline_hrtimer_tasklet_trampoline(struct timeline_hrtimer *timer)
+{
+	struct tasklet_timeline_hrtimer *ttimer =
+		container_of(timer, struct tasklet_timeline_hrtimer, timer);
+
+	tasklet_hi_schedule(&ttimer->tasklet);
+	return TIMELINE_HRTIMER_NORESTART;
+}
+
+/*
+ * Helper function which calls the timeline_hritmer callback from
+ * tasklet/softirq context
+ */
+static void __tasklet_timeline_hritmer_trampoline(unsigned long data)
+{
+	struct tasklet_timeline_hritmer *ttimer = (void *)data;
+	enum timeline_hritmer_restart restart;
+
+	restart = ttimer->function(&ttimer->timer);
+	if (restart != TIMELINE_HRTIMER_NORESTART)
+		timeline_hritmer_restart(&ttimer->timer);
+}
+
+/**
+ * tasklet_timeline_hritmer_init - Init a tasklet/timeline_hritmer combo for softirq callbacks
+ * @ttimer:	 tasklet_timeline_hritmer which is initialized
+ * @function:	 timeline_hritmer callback function which gets called from softirq context
+ * @which_clock: clock id (CLOCK_MONOTONIC/CLOCK_REALTIME)
+ * @mode:	 timeline_hritmer mode (HRTIMER_MODE_ABS/HRTIMER_MODE_REL)
+ */
+void tasklet_timeline_hritmer_init(struct tasklet_timeline_hritmer *ttimer,
+			  enum timeline_hritmer_restart (*function)(struct timeline_hritmer *),
+			  clockid_t which_clock, enum timeline_hritmer_mode mode)
+{
+	timeline_hritmer_init(&ttimer->timer, which_clock, mode);
+	ttimer->timer.function = __timeline_hritmer_tasklet_trampoline;
+	tasklet_init(&ttimer->tasklet, __tasklet_timeline_hritmer_trampoline,
+		     (unsigned long)ttimer);
+	ttimer->function = function;
+}
+EXPORT_SYMBOL_GPL(tasklet_timeline_hrtimer_init);
+#endif
 
 void __init softirq_init(void)
 {
