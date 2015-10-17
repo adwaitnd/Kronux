@@ -19,6 +19,10 @@
 #include <asm/ptrace.h>
 #include <asm/irq.h>
 
+#ifdef CONFIG_TIMELINE
+#include <linux/timeline_hrtimer.h>
+#endif
+
 /*
  * These correspond to the IORESOURCE_IRQ_* defines in
  * linux/ioport.h to select the interrupt line behaviour.  When
@@ -414,6 +418,7 @@ enum
 	TASKLET_SOFTIRQ,
 	SCHED_SOFTIRQ,
 	HRTIMER_SOFTIRQ,
+	TIMELINE_HRTIMER_SOFTIRQ,
 	RCU_SOFTIRQ,    /* Preferable RCU should always be the last softirq */
 
 	NR_SOFTIRQS
@@ -491,10 +496,10 @@ struct tasklet_struct
 };
 
 #define DECLARE_TASKLET(name, func, data) \
-struct tasklet_struct name = { NULL, 0, ATOMIC_INIT(0), func, data }
+struct tasklet_struct name = { NULL, 0, ATOMIC_INIT(0), func, data } \
 
 #define DECLARE_TASKLET_DISABLED(name, func, data) \
-struct tasklet_struct name = { NULL, 0, ATOMIC_INIT(1), func, data }
+struct tasklet_struct name = { NULL, 0, ATOMIC_INIT(1), func, data } \
 
 
 enum
@@ -604,7 +609,32 @@ void tasklet_hrtimer_cancel(struct tasklet_hrtimer *ttimer)
 	hrtimer_cancel(&ttimer->timer);
 	tasklet_kill(&ttimer->tasklet);
 }
+#ifdef CONFIG_TIMELINE
+struct tasklet_timeline_hrtimer {
+	struct timeline_hrtimer		timer;
+	struct tasklet_struct	tasklet;
+	enum timeline_hrtimer_restart	(*function)(struct timeline_hrtimer *);
+};
 
+extern void
+tasklet_timeline_hrtimer_init(struct tasklet_timeline_hrtimer *ttimer,
+		     enum timeline_hrtimer_restart (*function)(struct timeline_hrtimer *),
+		     clockid_t which_clock, enum timeline_hrtimer_mode mode);
+
+static inline
+int tasklet_timeline_hrtimer_start(struct tasklet_timeline_hrtimer *ttimer, ktime_t time,
+			  const enum timeline_hrtimer_mode mode)
+{
+	return timeline_hrtimer_start(&ttimer->timer, time, mode);
+}
+
+static inline
+void tasklet_timeline_hrtimer_cancel(struct tasklet_timeline_hrtimer *ttimer)
+{
+	timeline_hrtimer_cancel(&ttimer->timer);
+	tasklet_kill(&ttimer->tasklet);
+}
+#endif
 /*
  * Autoprobing for irqs:
  *

@@ -88,6 +88,10 @@
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 
+#ifdef CONFIG_TIMELINE
+#include <linux/timeline_hrtimer.h>
+#endif
+
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -582,6 +586,9 @@ asmlinkage __visible void __init start_kernel(void)
 	rcu_init_nohz();
 	init_timers();
 	hrtimers_init();
+	#ifdef CONFIG_TIMELINE
+	timeline_hrtimers_init();
+	#endif
 	softirq_init();
 	timekeeping_init();
 	time_init();

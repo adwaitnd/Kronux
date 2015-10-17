@@ -55,8 +55,11 @@
 #include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/wait.h>
+#include <linux/err.h>
 #include <linux/semaphore.h>
 #include <linux/kthread.h>
+#include <linux/timeline_hrtimer.h>
+#include <asm/uaccess.h>
 
 
 /* Import the system call table		*/
@@ -64,21 +67,36 @@ extern void *	sys_call_table[];
 
 void *sys_ni_syscall;
 
-asmlinkage int sys_timeline_wait_until(void)
+asmlinkage int sys_timeline_wait_until(struct timespec __user *rqtp, struct timespec __user *rmtp)
 {
 	printk(KERN_WARNING "In the sys_timeline_wait_until syscall\n");
-	return 5;
+	struct timespec tu;
+
+	if (copy_from_user(&tu, rqtp, sizeof(tu)))
+		return -EFAULT;
+
+	if (!timespec_valid(&tu))
+		return -EINVAL;
+
+	return timeline_hrtimer_nanosleep(&tu, rmtp, TIMELINE_HRTIMER_MODE_REL, CLOCK_MONOTONIC);
 }
 
-asmlinkage int sys_timeline_sleep(void)
+asmlinkage int sys_timeline_sleep(struct timespec __user *rqtp, struct timespec __user *rmtp)
 {
 	printk(KERN_WARNING "In the sys_timeline_sleep syscall\n");
-	return 5;
-}
+	struct timespec tu;
 
+	if (copy_from_user(&tu, rqtp, sizeof(tu)))
+		return -EFAULT;
+
+	if (!timespec_valid(&tu))
+		return -EINVAL;
+
+	return timeline_hrtimer_nanosleep(&tu, rmtp, TIMELINE_HRTIMER_MODE_REL, CLOCK_MONOTONIC);
+}
 void timeline_system_calls_init(void)
 {
-	printk(KERN_WARNING "Timeline Syscalls Overiding\n",);
+	printk(KERN_WARNING "Timeline Syscalls Overiding\n");
 	sys_ni_syscall = sys_call_table[__NR_timeline_wait_until];
 	sys_call_table[__NR_timeline_wait_until]		= &sys_timeline_wait_until;
 	sys_call_table[__NR_timeline_sleep]		= &sys_timeline_sleep;
@@ -114,6 +132,7 @@ void cleanup_timeline_syscalls(void)
 module_init(init_timeline_syscalls);
 module_exit(cleanup_timeline_syscalls);
 
+
 MODULE_AUTHOR("Carnegie Mellon University");
-MODULE_DESCRIPTION("Linux/RK Module");
+MODULE_DESCRIPTION("Timeline Syscall Module");
 MODULE_LICENSE("GPL");

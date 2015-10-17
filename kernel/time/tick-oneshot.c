@@ -18,7 +18,9 @@
 #include <linux/percpu.h>
 #include <linux/profile.h>
 #include <linux/sched.h>
-
+#ifdef CONFIG_TIMELINE
+#include <linux/timeline_hrtimer.h>
+#endif
 #include "tick-internal.h"
 
 /**
@@ -143,8 +145,8 @@ int tick_setup_timeline_oneshot(void (*handler)(struct clock_event_device *))
 	//tick_broadcast_switch_to_oneshot();
 	printk(KERN_EMERG "timeline: tick device setup\nmode: %d\n");
 	//Remove This Line Later
-	dev->event_handler = timeline_interrupt;
-	timeline_interrupt(dev);
+	dev->event_handler = timeline_hrtimer_interrupt;
+	//timeline_interrupt(dev);
 	return 0;
 }
 #endif
