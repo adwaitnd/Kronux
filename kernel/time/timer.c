@@ -1410,6 +1410,10 @@ static void run_timer_softirq(struct softirq_action *h)
 	struct tvec_base *base = __this_cpu_read(tvec_bases);
 
 	hrtimer_run_pending();
+	/* Added by Sandeep D'souza check the timeline timers every jiffy */
+	#ifdef CONFIG_TIMELINE
+		timeline_hrtimer_run_pending();
+	#endif
 
 	if (time_after_eq(jiffies, base->timer_jiffies))
 		__run_timers(base);

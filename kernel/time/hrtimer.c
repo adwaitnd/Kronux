@@ -56,6 +56,8 @@
 
 #include "tick-internal.h"
 
+static int coverage_counter = 0;
+
 /*
  * The timer bases:
  *
@@ -247,6 +249,7 @@ again:
 static inline struct hrtimer_clock_base *
 lock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
 {
+	coverage_counter |= (1 << 0);
 	struct hrtimer_clock_base *base = timer->base;
 
 	raw_spin_lock_irqsave(&base->cpu_base->lock, *flags);

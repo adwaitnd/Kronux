@@ -675,13 +675,13 @@ static int timeline_hrtimer_switch_to_hres(void)
 		return 1;
 
 	local_irq_save(flags);
-
-	if (tick_init_highres()) {
+    // Commented out may need to change for stability
+	/*if (tick_init_highres()) {
 		local_irq_restore(flags);
 		printk(KERN_WARNING "Could not switch to high resolution "
 				    "mode on CPU %d\n", cpu);
 		return 0;
-	}
+	}*/
 	base->hres_active = 1;
 	for (i = 0; i < TIMELINE_HRTIMER_MAX_CLOCK_BASES; i++)
 		base->clock_base[i].resolution = KTIME_HIGH_RES;
@@ -1251,7 +1251,7 @@ void timeline_hrtimer_interrupt(struct clock_event_device *dev)
 	struct timeline_hrtimer_cpu_base *cpu_base = this_cpu_ptr(&timeline_hrtimer_bases);
 	ktime_t expires_next, now, entry_time, delta;
 	int i, retries = 0;
-
+    printk(KERN_INFO, "In the Timeline Hrtimer interrupt handler\n");
 	BUG_ON(!cpu_base->hres_active);
 	cpu_base->nr_events++;
 	dev->next_event.tv64 = KTIME_MAX;
@@ -1418,8 +1418,12 @@ static inline void __timeline_hrtimer_peek_ahead_timers(void) { }
 void timeline_hrtimer_run_pending(void)
 {
 	if (timeline_hrtimer_hres_active())
+	{
+		//printk(KERN_INFO "Timeline timer stack on ...\n");
 		return;
-
+	}
+		
+	printk(KERN_INFO "timeline: Timeline timer stack switching on ...\n");
 	/*
 	 * This _is_ ugly: We have to check in the softirq context,
 	 * whether we can switch to highres and / or nohz mode. The
@@ -1428,8 +1432,8 @@ void timeline_hrtimer_run_pending(void)
 	 * check bit in the tick_oneshot code, otherwise we might
 	 * deadlock vs. xtime_lock.
 	 */
-	/*if (tick_check_oneshot_change(!timeline_hrtimer_is_hres_enabled()))
-		timeline_hrtimer_switch_to_hres();*/
+	/*if (tick_check_oneshot_change(!timeline_hrtimer_is_hres_enabled()))*/
+	timeline_hrtimer_switch_to_hres();
 }
 
 /*
@@ -1861,6 +1865,7 @@ int __sched schedule_timeline_hrtimeout(ktime_t *expires,
 	return schedule_timeline_hrtimeout_range(expires, 0, mode);
 }
 EXPORT_SYMBOL_GPL(schedule_timeline_hrtimeout);
+
 #endif
 #ifdef CONFIG_TIMELINE
 //Code added by Sandeep D'souza - Dummy Timeline Interrupt
