@@ -50,6 +50,11 @@ Module.symvers
 /Module.markers
 
 #
+# Custom modules
+#
+timelines
+
+#
 # Debian directory (make deb-pkg)
 #
 /debian/
