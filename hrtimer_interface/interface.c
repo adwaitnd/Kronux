@@ -14,13 +14,22 @@
 #include <linux/unistd.h>
 #include <linux/cpumask.h>
 #include <linux/freezer.h>
+#include <linux/signal.h>
 #include "interface.h"
 
+#define SIGTASKEXPIRED 44
 
 /*Sends a signal to a process*/
 static void interface_signal(struct task_struct *task)
 {
-	return;
+	struct siginfo info;
+
+    memset(&info, 0, sizeof(struct siginfo));
+    info.si_signo = SIGTASKEXPIRED;
+    info.si_code = SI_KERNEL;
+    info.si_int = 0;
+
+    send_sig_info(SIGTASKEXPIRED, &info, task);
 }
 
 /*Destroys a timeline node*/
