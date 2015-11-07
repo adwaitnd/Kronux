@@ -1,0 +1,3 @@
+obj-m += interface.o
+# modulename-y += another_source_file.o   
+#Use the second line to add other source files replace modulename with the name of the module
