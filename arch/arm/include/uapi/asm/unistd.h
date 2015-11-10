@@ -415,6 +415,16 @@
 #define __NR_bpf			(__NR_SYSCALL_BASE+386)
 #define __NR_execveat			(__NR_SYSCALL_BASE+387)
 
+#define __NR_custom0		(__NR_SYSCALL_BASE+388)
+#define __NR_custom1		(__NR_SYSCALL_BASE+389)
+#define __NR_custom2		(__NR_SYSCALL_BASE+390)
+#define __NR_custom3		(__NR_SYSCALL_BASE+391)
+#define __NR_custom4		(__NR_SYSCALL_BASE+392)
+#define __NR_custom5		(__NR_SYSCALL_BASE+393)
+#define __NR_custom6		(__NR_SYSCALL_BASE+394)
+#define __NR_custom7		(__NR_SYSCALL_BASE+395)
+
+
 /*
  * The following SWIs are ARM private.
  */
