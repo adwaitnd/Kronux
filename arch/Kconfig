@@ -30,6 +30,15 @@ config OPROFILE_EVENT_MULTIPLEX
 config HAVE_OPROFILE
 	bool
 
+# ifdef QOT
+# menu option for QoT
+config QOT
+	bool "Quality of time support with timelines (EXPERIMENTAL)"
+	default y
+	help
+	  Quality of time support with timelines
+	  Part of Roseline
+
 config OPROFILE_NMI_TIMER
 	def_bool y
 	depends on PERF_EVENTS && HAVE_PERF_EVENTS_NMI && !PPC64
