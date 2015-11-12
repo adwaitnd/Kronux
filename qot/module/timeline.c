@@ -59,7 +59,7 @@ struct timeline_sleeper {
     struct rb_node tl_node;
     struct hrtimer timer;
     struct task_struct *task;
-}
+};
 
 //
 // global objects
@@ -122,7 +122,44 @@ static void __exit timeline_exit(void) {
 
 }
 
+/*Sends a signal to a process*/
+static void interface_signal(struct task_struct *task)
+{
+    struct siginfo info;
 
+    memset(&info, 0, sizeof(struct siginfo));
+    info.si_signo = SIGTASKEXPIRED;
+    info.si_code = SI_KERNEL;
+    info.si_int = 0;
+
+    send_sig_info(SIGTASKEXPIRED, &info, task);
+}
+
+/*Destroys a timeline node*/
+static void interface_cancel(struct rb_node *timeline_node)
+{
+    return;
+}
+
+/* hrtimer callback wakes up a task*/
+static enum hrtimer_restart interface_wakeup(struct hrtimer *timer)
+{
+    struct timeline_sleeper *t = container_of(timer, struct timeline_sleeper, timer);
+    struct task_struct *task = t->task;
+    interface_cancel(&t->tl_node);
+    t->task = NULL;
+    if(task)
+        wake_up_process(task);
+
+    return HRTIMER_NORESTART;
+}
+
+/*initializes the hrtimer sleeper structure*/
+static void interface_init_sleeper(struct timeline_sleeper *sl, struct task_struct *task)
+{
+    sl->timer.function = interface_wakeup;
+    sl->task = task;
+}
 
 // hijacked system call
 // absolute sleep on given timeline
@@ -147,12 +184,14 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
 
     // try to find the given timeline from tree
     // assume we found it for now
-
+    tl = get_timeline(tlid);
 
     // hrtimer has been initialized
+    
     hrtimer_init_on_stack(&sleep_timer.timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
     hrtimer_set_expires(&sleep_timer.timer, timespec_to_ktime(t_wake));
     interface_init_sleeper(&sleep_timer, current);
+    timeline_event_add(&tl->event_head, &sleep_timer);
 
     do {
         set_current_state(TASK_INTERRUPTIBLE);
@@ -173,11 +212,79 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
 
     // check if t_now - t_wake > epsilon
     delta = timespec_sub(t_now, t_wake);
-    if(timespec_compare(&delta, &epsilon) <= 0) {
+    if(timespec_compare(&delta, &epsilon) <= 0) 
+    {
         return sleep_timer.task == NULL;
-    } else {
+    } 
+    else 
+    {
         return -EBADE;
     }
+}
+
+/*Changes the timeline tasks time on the hrtimer rb tree*/
+static void interface_reconfigure(struct hrtimer *timer)
+{
+    struct timeline_sleeper *sleeper;
+    sleeper = container_of(timer, struct timeline_sleeper, timer);
+    hrtimer_cancel(timer);
+    hrtimer_init_on_stack(timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+    sleeper->timer = timer;
+    hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
+    return;
+}
+
+/* Updates hrtimer softexpires when a time change happens, called by the set_time adj_time functions*/
+int interface_update(struct timespec (*get_new_time)(struct timespec *), struct rb_root *timeline_root)
+{
+    struct timespec new_expires_time;
+    struct timespec old_expires_time;
+    ktime_t new_softexpires;
+    ktime_t current_sys_time;
+    
+    struct hrtimer *timer;
+    struct timeline_sleeper *sleeping_task;
+    int retval = 0;
+    int ret_flag = 0; /* Returns a non zero number incase a task has to be woken up midway the mod of the non zero number is the number of tasks which had to be woken up */
+
+    struct task_struct *task;
+
+    struct rb_node *timeline_node = NULL;
+    struct rb_node *next_node = NULL;
+    /*Get the current system time*/
+    current_sys_time = ktime_get_real();
+
+    timeline_node = rb_first(timeline_root);
+    while(timeline_node != NULL)
+    {
+        sleeping_task = container_of(timeline_node, struct timeline_sleeper, tl_node);
+        timer = sleeping_task->timer;
+        task = sleeping_task->task;
+        old_expires_time = ktime_to_timespec(timer->_softexpires);
+        new_expires_time = get_new_time(&old_expires_time);
+
+        new_softexpires = timespec_to_ktime(new_expires_time);
+        
+        /* Send a signal to the user */
+        retval = ktime_compare(new_softexpires, current_sys_time);
+        if(retval <= 0)
+        {
+            interface_signal(task);
+            interface_cancel(&timer->tl_node);
+            hrtimer_cancel(timer);
+            wake_up_process(task);
+            ret_flag--;
+        }
+        else
+        {
+            hrtimer_set_expires(timer, new_softexpires);
+            interface_reconfigure(timer);
+        }
+        next_node = rb_next(timeline_node);
+        timeline_node = next_node;
+    }
+    
+    return ret_flag;
 }
 
 // SYSCALL_DEFINE2(nanosleep, struct timespec __user *, rqtp,
