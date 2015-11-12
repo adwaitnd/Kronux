@@ -49,8 +49,12 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
 static int __init timeline_init(void) {
     
     // Hijack system calls
+    printk(KERN_INFO"[timeline] old custom0 call @table: %p\n", sys_call_table[__NR_qot_custom0]);
+    printk(KERN_INFO"[timeline] old custom1 call @table: %p\n", sys_call_table[__NR_qot_custom1]);
+    printk(KERN_INFO"[timeline] our function @local: %p\n", &sys_timeline_nanosleep);
     old_custom0 = sys_call_table[__NR_qot_custom0];
-    sys_call_table[__NR_qot_custom0] = sys_timeline_nanosleep;
+    sys_call_table[__NR_qot_custom0] = &sys_timeline_nanosleep;
+    printk(KERN_INFO"[timeline] new value @table: %p\n", sys_call_table[__NR_qot_custom0]);
 
     printk(KERN_INFO"[timeline] module loaded\n");
 
@@ -59,7 +63,9 @@ static int __init timeline_init(void) {
 
 // module exit function
 static void __exit timeline_exit(void) {
+    printk(KERN_INFO"[timeline] current call %p\n", sys_call_table[__NR_qot_custom0]);
     sys_call_table[__NR_qot_custom0] = old_custom0;
+    printk(KERN_INFO"[timeline] restored call: %p\n", sys_call_table[__NR_qot_custom0]);
     printk(KERN_INFO"[timeline] module unloaded\n");
 }
 

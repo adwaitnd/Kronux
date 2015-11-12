@@ -171,8 +171,8 @@ EXPORT_SYMBOL(__pv_offset);
 #endif
 
 // export system call table for QoT module
-#ifdef QOT
-extern void *sys_call_table;
+#ifdef CONFIG_QOT
+extern void *sys_call_table[];
 EXPORT_SYMBOL(sys_call_table);
 #endif
-// endif QOT
+// endif CONFIG_QOT
