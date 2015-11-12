@@ -32,7 +32,7 @@ MODULE_VERSION("0.1");
 // external objects
 //
 
-extern void sys_call_table[];
+extern void *sys_call_table[];
 long (*old_custom0)(void);
 
 //
@@ -70,7 +70,6 @@ static void __exit timeline_exit(void) {
 asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec __user *exp_time) {
     char tlid[MAX_NAMESIZE];
     struct timespec t;
-    int err;
 
     // copy user data
     if(copy_from_user(tlid, timeline_id, MAX_NAMESIZE) || copy_from_user(&t, exp_time, sizeof(struct timespec))) {
@@ -83,7 +82,7 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
         return -EINVAL;
     }
 
-    printk(KERN_INFO "[sys_timeline_nanosleep] timeline id: %s, expiry: %ld.%lu", tlid, t.tv_sec, t2.tv_nsec);
+    printk(KERN_INFO "[sys_timeline_nanosleep] timeline id: %s, expiry: %ld.%lu", tlid, t.tv_sec, t.tv_nsec);
 
     // try to find the given timeline
 
