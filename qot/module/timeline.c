@@ -83,6 +83,7 @@ struct timespec epsilon = {0,1000000};      // the allowable timing error betwee
 //
 
 asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec __user *exp_time);
+static int timeline_event_add(struct rb_root *head, struct timeline_sleeper *sleeper);
 
 //
 // function declarations
@@ -180,20 +181,25 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
     }
 }
 
-// SYSCALL_DEFINE2(nanosleep, struct timespec __user *, rqtp,
-//         struct timespec __user *, rmtp)
-// {
-//     struct timespec tu;
-
-//     if (copy_from_user(&tu, rqtp, sizeof(tu)))
-//         return -EFAULT;
-
-//     if (!timespec_valid(&tu))
-//         return -EINVAL;
-
-//     return hrtimer_nanosleep(&tu, rmtp, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
-// }
-
+// add timeline_sleeper node to specified rb tree. tree nodes are ordered on expiry time
+static int timeline_event_add(struct rb_root *head, struct timeline_sleeper *sleeper) {
+    struct rb_node **new = &(root->rb_node), *parent = NULL;
+    int result;
+    while(*new) {
+        struct timeline_sleeper *this = container_of(*new, struct timeline_sleeper, tl_node);
+        // order wrt expiry time
+        result = ktime_compare(sleeper->timer.node.expires, this->timer.node.expires);
+        parent = *new;
+        if (result < 0)
+            new = &((*new)->rb_left);
+        else
+            new = &((*new)->rb_right);
+    }
+    /* Add new node and rebalance tree. */
+    rb_link_node(&sleeper->tl_node, parent, new);
+    rb_insert_color(&sleeper->tl_node, head);
+    return TRUE;
+}
 
 //
 // module registration functions
