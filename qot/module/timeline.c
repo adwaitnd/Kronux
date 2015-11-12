@@ -13,6 +13,7 @@
 #include <linux/time.h>     // timespec & operations
 #include <linux/slab.h>     // kmalloc, kfree
 #include <linux/init.h>     // __init & __exit macros
+#include <linux/timekeeping.h>  // for getnstimeofday
 #include <asm/unistd.h>         // syscall values
 #include <asm-generic/uaccess.h>        // copy_from_userfcopy_from
 
@@ -34,13 +35,30 @@ MODULE_VERSION("0.1");
 //
 // data structures
 //
+
 struct qot_timeline {
-    struct rb_node node_uuid;   // timeline node
-    char uuid[MAX_NAMESIZE];    // unique id of timeline
-}
+    char uuid[QOT_MAX_NAMELEN];         // UUID
+    struct rb_node node_uuid;           // Red-black tree is used to store timelines on UUID
+    struct rb_node node_ptpi;           // Red-black tree is used to store timelines on PTP index
+    struct rb_root event_head;          // RB tree head for events on this timeline
+    struct ptp_clock_info info;         // PTP clock infomration
+    struct ptp_clock *clock;            // PTP clock itself
+    int index;                          // Index of the clock
+    spinlock_t lock;                    // Protects driver time registers
+    struct list_head head_acc;          // Head pointing to maximum accuracy structure
+    struct list_head head_res;          // Head pointing to maximum resolution structure
+    struct qot_metric actual;           // The actual accuracy/resolution
+    int32_t dialed_frequency;           // Discipline: dialed frequency
+    uint32_t cc_mult;                   // Discipline: mult carry
+    uint64_t last;                      // Discipline: last cycle count of discipline
+    int64_t mult;                       // Discipline: ppb multiplier for errors
+    int64_t nsec;                       // Discipline: global time offset
+};
 
 struct timeline_sleeper {
-
+    struct rb_node tl_node;
+    struct hrtimer timer;
+    struct task_struct *task;
 }
 
 //
@@ -57,6 +75,8 @@ static long (*old_custom5)(void);   // store old syscall
 static long (*old_custom6)(void);   // store old syscall
 static long (*old_custom7)(void);   // store old syscall
 struct rb_root timeline_root = RB_ROOT;     // also initialize it
+int64_t nsec;
+struct timespec epsilon = {0,1000000};      // the allowable timing error between event request & execution
 
 //
 // function definitions 
@@ -108,25 +128,56 @@ static void __exit timeline_exit(void) {
 // absolute sleep on given timeline
 asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec __user *exp_time) {
     char tlid[MAX_NAMESIZE];
-    struct timespec t;
+    struct timespec t_wake, t_now, delta;
+    struct timeline_sleeper sleep_timer;
+    struct qot_timeline *tl;
 
     // copy user data
-    if(copy_from_user(tlid, timeline_id, MAX_NAMESIZE) || copy_from_user(&t, exp_time, sizeof(struct timespec))) {
+    if(copy_from_user(tlid, timeline_id, MAX_NAMESIZE) || copy_from_user(&t_wake, exp_time, sizeof(struct timespec))) {
         printk(KERN_ALERT "[sys_timeline_nanosleep] could not copy_from_user\n");
         return -EFAULT;
     }
 
-    if(!(timespec_valid(&t))) {
+    if(!(timespec_valid(&t_wake))) {
         printk(KERN_INFO "[sys_timeline_nanosleep] invalid timespec\n");
         return -EINVAL;
     }
 
-    printk(KERN_INFO "[sys_timeline_nanosleep] timeline id: %s, expiry: %ld.%lu", tlid, t.tv_sec, t.tv_nsec);
+    printk(KERN_INFO "[sys_timeline_nanosleep] timeline id: %s, expiry: %ld.%lu", tlid, t_wake.tv_sec, t_wake.tv_nsec);
 
     // try to find the given timeline from tree
     // assume we found it for now
 
-    return 0;
+
+    // hrtimer has been initialized
+    hrtimer_init_on_stack(&sleep_timer.timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+    hrtimer_set_expires(&sleep_timer.timer, timespec_to_ktime(t_wake));
+    interface_init_sleeper(&sleep_timer, current);
+
+    do {
+        set_current_state(TASK_INTERRUPTIBLE);
+        hrtimer_start_expires(&sleep_timer.timer, HRTIMER_MODE_ABS);
+        if (!hrtimer_active(&sleep_timer.timer))
+            sleep_timer.task = NULL;
+
+        if (likely(sleep_timer.task))
+            freezable_schedule();
+
+        hrtimer_cancel(&sleep_timer.timer);
+    } while (sleep_timer.task && !signal_pending(sleep_timer.task));
+    
+     __set_current_state(TASK_RUNNING);
+
+    // get system time for comparision
+    getnstimeofday(&t_now);
+
+    // check if t_now - t_wake > epsilon
+    delta = timespec_sub(t_now, t_wake);
+    if(timespec_compare(&delta, &epsilon) <= 0) {
+        return sleep_timer.task == NULL;
+    } else {
+        return -EBADE;
+    }
 }
 
 // SYSCALL_DEFINE2(nanosleep, struct timespec __user *, rqtp,
