@@ -30,7 +30,7 @@ config OPROFILE_EVENT_MULTIPLEX
 config HAVE_OPROFILE
 	bool
 
-# ifdef QOT
+# ifdef CONFIG_QOT
 # menu option for QoT
 config QOT
 	bool "Quality of time support with timelines (EXPERIMENTAL)"

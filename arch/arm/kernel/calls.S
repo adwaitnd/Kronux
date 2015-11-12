@@ -398,7 +398,6 @@
 		CALL(sys_bpf)
 		CALL(sys_execveat)
 
-#ifdef QOT
 		CALL(sys_ni_syscall)
 		CALL(sys_ni_syscall)
 		CALL(sys_ni_syscall)
@@ -406,8 +405,7 @@
 		CALL(sys_ni_syscall)
 		CALL(sys_ni_syscall)
 		CALL(sys_ni_syscall)
-		CALL(sys_ni_syscall)
-#endif
+		CALL(sys_ni_syscall)	
 		
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls

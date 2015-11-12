@@ -416,7 +416,7 @@
 #define __NR_execveat			(__NR_SYSCALL_BASE+387)
 
 //additional syscalls
-#ifdef QOT
+#ifdef CONFIG_QOT
 #define __NR_qot_custom0		(__NR_SYSCALL_BASE+388)
 #define __NR_qot_custom1		(__NR_SYSCALL_BASE+389)
 #define __NR_qot_custom2		(__NR_SYSCALL_BASE+390)
@@ -426,7 +426,7 @@
 #define __NR_qot_custom6		(__NR_SYSCALL_BASE+394)
 #define __NR_qot_custom7		(__NR_SYSCALL_BASE+395)
 #endif
-// endif QOT
+// endif CONFIG_QOT
 
 /*
  * The following SWIs are ARM private.

@@ -116,6 +116,10 @@ struct hrtimer {
 	void				*start_site;
 	char				start_comm[16];
 #endif
+
+#ifdef CONFIG_QOT
+	struct rb_node tl_node;		// data structure for timeline RB Tree
+#endif
 };
 
 /**

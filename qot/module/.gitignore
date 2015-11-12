@@ -1,0 +1,8 @@
+*
+.*
+!*.c
+*.mod.c
+!*.h
+!Kbuild
+!Makefile
+!.gitignore
