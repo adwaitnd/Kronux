@@ -61,9 +61,9 @@ struct qot_timeline {
     // struct qot_metric actual;           // The actual accuracy/resolution
     int32_t dialed_frequency;           // Discipline: dialed frequency
     uint32_t cc_mult;                   // Discipline: mult carry
-    uint64_t last;                      // Discipline: last cycle count of discipline
-    int64_t mult;                       // Discipline: ppb multiplier for errors
-    int64_t nsec;                       // Discipline: global time offset
+    u64 last;                      // Discipline: last cycle count of discipline
+    s64 mult;                       // Discipline: ppb multiplier for errors
+    s64 nsec;                       // Discipline: global time offset
 
      
 };
@@ -75,9 +75,10 @@ struct timeline_sleeper {
     struct task_struct *task;           // task this belongs to
 };
 
-struct qot_delta {
-    int64_t d_mult;                     // change in multiplier
-    int64_t d_nsec;                     // change in offset
+struct qot_clock_params {
+    u64 last;
+    s64 mult;
+    s64 nsec;
 };
 
 //
@@ -93,7 +94,7 @@ static long (*old_custom4)(void);   // store old syscall
 static long (*old_custom5)(void);   // store old syscall
 static long (*old_custom6)(void);   // store old syscall
 static long (*old_custom7)(void);   // store old syscall
-int64_t nsec;
+s64 nsec;
 struct timespec epsilon = {0,1000000};      // the allowable timing error between event request & execution
 struct qot_timeline global_timeline;
 
@@ -102,17 +103,16 @@ struct qot_timeline global_timeline;
 //
 
 asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec __user *exp_time);
-asmlinkage long sys_set_offset(char __user *timeline_id, int64_t offset);
+asmlinkage long sys_set_offset(char __user *timeline_id, s64 offset);
 asmlinkage long sys_print_timeline(char __user *uuid);
 static int timeline_event_add(struct rb_root *head, struct timeline_sleeper *sleeper);
 // static void signal_missed_deadline(struct task_struct *task);
 static void interface_cancel(struct timeline_sleeper *sleeper);
 static enum hrtimer_restart interface_wakeup(struct hrtimer *timer);
 static void interface_init_sleeper(struct timeline_sleeper *sl, struct task_struct *task, struct qot_timeline *timeline);
-static void interface_reconfigure(struct hrtimer *timer, ktime_t expires);
-int interface_update(struct rb_root *timeline_root, struct qot_delta *delta);
+int interface_update(struct rb_root *timeline_root, struct qot_clock_params *old_params, struct qot_clock_params *new_params);
 struct qot_timeline *get_timeline(char *uuid);
-struct timespec update_time(struct timespec* old, struct qot_delta *delta);
+struct timespec update_time(struct timespec *old, struct qot_clock_params *old_params, struct qot_clock_params *new_params);
 
 //
 // function declarations
@@ -125,6 +125,7 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
     struct timespec t_wake, t_now, delta;
     struct timeline_sleeper sleep_timer;
     struct qot_timeline *tl;
+
 
     // copy user data
     if(copy_from_user(tlid, timeline_id, QOT_MAX_NAMELEN) || copy_from_user(&t_wake, exp_time, sizeof(struct timespec))) {
@@ -182,22 +183,35 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
 }
 
 // right now just change the global_timeline directly without a bother for checking timelines
-asmlinkage long sys_set_offset(char __user *timeline_id, int64_t offset) {
-    struct qot_delta delta;
-    delta.d_nsec = offset - global_timeline.nsec;
-    delta.d_mult = 0;
-    printk(KERN_INFO "[set_offset] change offset to %lld (delta mult: %lld, off: %lld)\n", offset, delta.d_mult, delta.d_nsec);
-    global_timeline.nsec = offset;
-    interface_update(&global_timeline.event_head, &delta);
+asmlinkage long sys_set_offset(char __user *timeline_id, s64 offset) {
+    struct qot_clock_params old_params, new_params;
+    struct qot_timeline *timeline;
+    char tlid[QOT_MAX_NAMELEN];
+    if(copy_from_user(tlid, timeline_id, QOT_MAX_NAMELEN)) {
+        return -EINVAL;
+    }
+    timeline = get_timeline(tlid);
+    old_params.nsec = timeline->nsec;
+    old_params.mult = timeline->mult;
+    old_params.last = timeline->last;
+    
+    new_params.nsec = offset;
+    new_params.mult = old_params.mult;
+    new_params.last = old_params.last;
+    
+    printk(KERN_INFO "[sys_set_offset] change offset %lld -> %lld (%x -> %x)\n", old_params.nsec, new_params.nsec, old_params.nsec, new_params.nsec);
+    timeline->nsec = offset;
+    interface_update(&timeline->event_head, &old_params, &new_params);
     return offset;
 }
 
+// does nothing for now
 // only updates offset for now
-struct timespec update_time(struct timespec *old, struct qot_delta *delta) {
-    struct timespec new;
-    new = timespec_add(*old, ns_to_timespec(delta->d_nsec));
-    printk(KERN_INFO "[update time]: %ld.%09lu -> %ld.%09lu\n", old->tv_sec, old->tv_nsec, new.tv_sec, new.tv_nsec);
-    return new;
+struct timespec update_time(struct timespec *old, struct qot_clock_params *old_params, struct qot_clock_params *new_params) {
+    // struct timespec new;
+    // new = timespec_add(*old, ns_to_timespec(delta->d_nsec));
+    // printk(KERN_INFO "[update time]: %ld.%09lu -> %ld.%09lu\n", old->tv_sec, old->tv_nsec, new.tv_sec, new.tv_nsec);
+    return *old;
 }
 
 
@@ -266,21 +280,10 @@ static int timeline_event_add(struct rb_root *head, struct timeline_sleeper *sle
     return 0;
 }
 
-/*Changes the timeline tasks time on the hrtimer rb tree*/
-static void interface_reconfigure(struct hrtimer *timer, ktime_t expires)
-{
-    struct timeline_sleeper *sleeper;
-    sleeper = container_of(timer, struct timeline_sleeper, timer);
-    hrtimer_cancel(timer);
-    hrtimer_init_on_stack(&sleeper->timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-    hrtimer_set_expires(&sleeper->timer, expires);
-    hrtimer_start_expires(&sleeper->timer, HRTIMER_MODE_ABS);
-    return;
-}
+
 
 /* Updates hrtimer softexpires when a time change happens, called by the set_time adj_time functions*/
-int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
-{
+int interface_update(struct rb_root *timeline_root, struct qot_clock_params *old_params, struct qot_clock_params *new_params) {
     struct timespec new_expires_time;
     struct timespec old_expires_time;
     ktime_t new_softexpires;
@@ -288,10 +291,8 @@ int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
     
     struct hrtimer *timer;
     struct timeline_sleeper *sleeping_task;
-    int retval = 0;
-    int ret_flag = 0; /* Returns a non zero number incase a task has to be woken up midway the mod of the non zero number is the number of tasks which had to be woken up */
-
     struct task_struct *task;
+    int missed_events = 0; /* Returns a non zero number incase a task has to be woken up midway the mod of the non zero number is the number of tasks which had to be woken up */
 
     struct rb_node *timeline_node = NULL;
     /*Get the current system time*/
@@ -299,89 +300,62 @@ int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
 
     timeline_node = rb_first(timeline_root);
 
-    // for (timeline_node = rb_first(timeline_root); timeline_node; timeline_node = rb_next(node))
-    // {
-    //     sleeping_task = container_of(timeline_node, struct timeline_sleeper, tl_node);
-    //     timer = &sleeping_task->timer;
-    //     task = sleeping_task->task;
-    //     old_expires_time = ktime_to_timespec(timer->_softexpires);
-    //     new_expires_time = update_time(&old_expires_time, delta);
-    //     printk(KERN_INFO "[interface_update] task %d updated: t_exp %ld.%09lu -> %ld.%09lu\n", task->pid, old_expires_time.tv_sec, old_expires_time.tv_nsec, new_expires_time.tv_sec, new_expires_time.tv_nsec);
-
-
-    //     new_softexpires = timespec_to_ktime(new_expires_time);
-        
-    //     /* Send a signal to the user */
-    //     retval = ktime_compare(new_softexpires, current_sys_time);
-    //     if(retval <= 0)
-    //     {
-    //         // signal_missed_deadline(task);
-    //         hrtimer_cancel(timer);
-    //         wake_up_process(task);
-    //         interface_cancel(sleeping_task);
-
-    //         printk(KERN_INFO "[interface_update] task %d missed deadline due to changed time\n", task->pid);
-    //         ret_flag--;
-    //     }
-    //     else
-    //     {
-    //         interface_reconfigure(timer, new_softexpires);
-    //     }
-    // }
-    
-    while(timeline_node != NULL)
-    {
+    for (timeline_node = rb_first(timeline_root); timeline_node != NULL;) {
         sleeping_task = container_of(timeline_node, struct timeline_sleeper, tl_node);
         timer = &sleeping_task->timer;
         task = sleeping_task->task;
         old_expires_time = ktime_to_timespec(timer->_softexpires);
-        new_expires_time = update_time(&old_expires_time, delta);
+        new_expires_time = update_time(&old_expires_time, old_params, new_params);
         new_softexpires = timespec_to_ktime(new_expires_time);
         printk(KERN_INFO "[interface_update] task %d updated: t_exp %ld.%09lu -> %ld.%09lu\n", task->pid, old_expires_time.tv_sec, old_expires_time.tv_nsec, new_expires_time.tv_sec, new_expires_time.tv_nsec);
-        timeline_node = rb_next(timeline_node);
-        retval = ktime_compare(new_softexpires, current_sys_time);
-        if(retval <= 0)
-        {
-            // signal_missed_deadline(task);
-            hrtimer_cancel(timer);
-            wake_up_process(task);
-            interface_cancel(sleeping_task);
-            printk(KERN_INFO "[interface_update] task %d missed deadline due to changed time\n", task->pid);
-            ret_flag--;
-        }
-        else
-        {
-            printk(KERN_INFO "[interface update] task %d being reprogrammed due to changed time\n", task->pid);
-            interface_reconfigure(timer, new_softexpires);
-        }
         
+        timeline_node = rb_next(timeline_node);     // change node pointer to next node for next iteration
+
+        // check if our time has expired
+        if(ktime_compare(new_softexpires, current_sys_time) <= 0) {
+            // we missed our event. wake up process & let it know
+            printk(KERN_INFO "[interface_update] task %d missed due to changed notion of time\n", task->pid);
+            // hrtimer_cancel(timer);
+            // wake_up_process(task);
+            // interface_cancel(sleeping_task);
+            interface_wakeup(timer);
+            missed_events++;                    // increment number of missed events
+        } else {
+            // reprogram timer with new value
+            printk(KERN_INFO "[interface_update] task %d timer reprogrammed\n", task->pid);
+            hrtimer_cancel(timer);      // cancel old
+            hrtimer_init_on_stack(timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+            hrtimer_set_expires(timer, new_softexpires);       // set new expiry time
+            hrtimer_start_expires(timer, HRTIMER_MODE_ABS);   // start new values
+        }
     }
-    
-    return ret_flag;
+    return -missed_events;
 }
 
 
-asmlinkage long sys_print_timeline(char __user *uuid)
-{
+asmlinkage long sys_print_timeline(char __user *uuid) {
     struct rb_node *timeline_node = NULL;
-    struct rb_node *next_node = NULL;
     struct timeline_sleeper *sleeping_task;
+    struct qot_timeline *timeline;
+    char tlid[QOT_MAX_NAMELEN]; 
     /*Get the current system time*/
-    
-    timeline_node = rb_first(&global_timeline.event_head);
+    if(copy_from_user(tlid, uuid, QOT_MAX_NAMELEN)) {
+        printk(KERN_ALERT"[sys_print_timeline] unable to copy_from_user\n");
+        return -EFAULT;
+    }
+
+    timeline = get_timeline(uuid);
     printk(KERN_INFO "Displaying the global timeline\n");
     printk(KERN_INFO "PID\tExpiry Time\n");
+    timeline_node = rb_first(&timeline->event_head);
     while(timeline_node != NULL)
     {
         sleeping_task = container_of(timeline_node, struct timeline_sleeper, tl_node);
-        printk(KERN_INFO "%d\t%lld\n", sleeping_task->task->pid, ktime_to_ns(sleeping_task->timer._softexpires));
-        
-        next_node = rb_next(timeline_node);
-        timeline_node = next_node;
+        printk(KERN_INFO "%d\t%lld\n", sleeping_task->task->pid, ktime_to_ns(sleeping_task->timer._softexpires)); 
+        timeline_node = rb_next(timeline_node);
     }
     return 0;
 }
-
 
 // this is a dummy for now. We interface with Andrew later
 struct qot_timeline *get_timeline(char *uuid) {
@@ -423,7 +397,7 @@ static int __init timeline_init(void) {
 
 // module exit function
 static void __exit timeline_exit(void) {
-    sys_call_table[__NR_qot_custom0] = old_custom0;
+    sys_call_table[__NR_qot_custom0] =  old_custom0;
     sys_call_table[__NR_qot_custom1] = old_custom1;
     sys_call_table[__NR_qot_custom2] = old_custom2;
     sys_call_table[__NR_qot_custom3] = old_custom3;
