@@ -49,8 +49,11 @@ struct qot_timeline {
     struct rb_node node_uuid;           // Red-black tree is used to store timelines on UUID
     struct rb_node node_ptpi;           // Red-black tree is used to store timelines on PTP index
     struct rb_root event_head;          // RB tree head for events on this timeline
+    spinlock_t rb_lock;                 // RB tree spinlock
+
     struct ptp_clock_info info;         // PTP clock infomration
-    struct ptp_clock *clock;            // PTP clock itself
+    struct ptp_clock *clock;         
+       // PTP clock itself
     int index;                          // Index of the clock
     spinlock_t lock;                    // Protects driver time registers
     struct list_head head_acc;          // Head pointing to maximum accuracy structure
@@ -61,6 +64,8 @@ struct qot_timeline {
     uint64_t last;                      // Discipline: last cycle count of discipline
     int64_t mult;                       // Discipline: ppb multiplier for errors
     int64_t nsec;                       // Discipline: global time offset
+
+     
 };
 
 struct timeline_sleeper {
@@ -104,7 +109,7 @@ static int timeline_event_add(struct rb_root *head, struct timeline_sleeper *sle
 static void interface_cancel(struct timeline_sleeper *sleeper);
 static enum hrtimer_restart interface_wakeup(struct hrtimer *timer);
 static void interface_init_sleeper(struct timeline_sleeper *sl, struct task_struct *task, struct qot_timeline *timeline);
-static void interface_reconfigure(struct hrtimer *timer);
+static void interface_reconfigure(struct hrtimer *timer, ktime_t expires);
 int interface_update(struct rb_root *timeline_root, struct qot_delta *delta);
 struct qot_timeline *get_timeline(char *uuid);
 struct timespec update_time(struct timespec* old, struct qot_delta *delta);
@@ -132,13 +137,13 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
         return -EINVAL;
     }
 
-    printk(KERN_INFO "[sys_timeline_nanosleep] timeline id: %s, expiry: %ld.%lu\n", tlid, t_wake.tv_sec, t_wake.tv_nsec);
+    //printk(KERN_INFO "[sys_timeline_nanosleep] timeline id: %s, expiry: %ld.%lu", tlid, t_wake.tv_sec, t_wake.tv_nsec);
 
     // try to find the given timeline from tree
     // assume we found it for now
     tl = get_timeline(tlid);
 
-    printk("[sys_timeline_nanosleep] found timeline %s\n", tl->uuid);
+    //printk("[sys_timeline_nanosleep] found timeline %s\n", tl->uuid);
 
     // hrtimer has been initialized
     
@@ -154,7 +159,7 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
 
         getnstimeofday(&t_now);
         if (likely(sleep_timer.task)) {
-            printk(KERN_INFO"[sys_timeline_nanosleep] task %d sleeping at %ld.%09lu\n", current->pid, t_now.tv_sec, t_now.tv_nsec);
+            //printk(KERN_INFO"[sys_timeline_nanosleep] task %d sleeping at %ld.%09lu\n", current->pid, t_now.tv_sec, t_now.tv_nsec);
             freezable_schedule();
         }
 
@@ -171,7 +176,7 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
     if(timespec_compare(&delta, &epsilon) <= 0) {
         return sleep_timer.task == NULL;
     } else {
-        printk(KERN_INFO "[sys_timeline_nanosleep] task %d waited too long\n", current->pid);
+        //printk(KERN_INFO "[sys_timeline_nanosleep] task %d waited too long\n", current->pid);
         return -EBADE;
     }
 }
@@ -189,7 +194,10 @@ asmlinkage long sys_set_offset(char __user *timeline_id, int64_t offset) {
 
 // only updates offset for now
 struct timespec update_time(struct timespec *old, struct qot_delta *delta) {
-    return timespec_add(*old, ns_to_timespec(delta->d_nsec));
+    struct timespec new;
+    new = timespec_add(*old, ns_to_timespec(delta->d_nsec));
+    printk(KERN_INFO "[update time]: %ld.%09lu -> %ld.%09lu\n", old->tv_sec, old->tv_nsec, new.tv_sec, new.tv_nsec);
+    return new;
 }
 
 
@@ -259,13 +267,14 @@ static int timeline_event_add(struct rb_root *head, struct timeline_sleeper *sle
 }
 
 /*Changes the timeline tasks time on the hrtimer rb tree*/
-static void interface_reconfigure(struct hrtimer *timer)
+static void interface_reconfigure(struct hrtimer *timer, ktime_t expires)
 {
     struct timeline_sleeper *sleeper;
     sleeper = container_of(timer, struct timeline_sleeper, timer);
     hrtimer_cancel(timer);
     hrtimer_init_on_stack(&sleeper->timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-    hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
+    hrtimer_set_expires(&sleeper->timer, expires);
+    hrtimer_start_expires(&sleeper->timer, HRTIMER_MODE_ABS);
     return;
 }
 
@@ -285,16 +294,40 @@ int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
     struct task_struct *task;
 
     struct rb_node *timeline_node = NULL;
-    struct rb_node *next_node = NULL;
     /*Get the current system time*/
     current_sys_time = ktime_get_real();
 
     timeline_node = rb_first(timeline_root);
 
-    for (timeline_node = rb_first(timeline_root); timeline_node; timeline_node = rb_next(node))
-    {
-        printk("key=%s\n", rb_entry(node, struct mytype, node)->keystring);
-    }
+    // for (timeline_node = rb_first(timeline_root); timeline_node; timeline_node = rb_next(node))
+    // {
+    //     sleeping_task = container_of(timeline_node, struct timeline_sleeper, tl_node);
+    //     timer = &sleeping_task->timer;
+    //     task = sleeping_task->task;
+    //     old_expires_time = ktime_to_timespec(timer->_softexpires);
+    //     new_expires_time = update_time(&old_expires_time, delta);
+    //     printk(KERN_INFO "[interface_update] task %d updated: t_exp %ld.%09lu -> %ld.%09lu\n", task->pid, old_expires_time.tv_sec, old_expires_time.tv_nsec, new_expires_time.tv_sec, new_expires_time.tv_nsec);
+
+
+    //     new_softexpires = timespec_to_ktime(new_expires_time);
+        
+    //     /* Send a signal to the user */
+    //     retval = ktime_compare(new_softexpires, current_sys_time);
+    //     if(retval <= 0)
+    //     {
+    //         // signal_missed_deadline(task);
+    //         hrtimer_cancel(timer);
+    //         wake_up_process(task);
+    //         interface_cancel(sleeping_task);
+
+    //         printk(KERN_INFO "[interface_update] task %d missed deadline due to changed time\n", task->pid);
+    //         ret_flag--;
+    //     }
+    //     else
+    //     {
+    //         interface_reconfigure(timer, new_softexpires);
+    //     }
+    // }
     
     while(timeline_node != NULL)
     {
@@ -303,12 +336,9 @@ int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
         task = sleeping_task->task;
         old_expires_time = ktime_to_timespec(timer->_softexpires);
         new_expires_time = update_time(&old_expires_time, delta);
-        printk(KERN_INFO "[interface_update] task %d updated: t_exp %ld.%09lu -> %ld.%09lu\n", task->pid, old_expires_time.tv_sec, old_expires_time.tv_nsec, new_expires_time.tv_sec, new_expires_time.tv_nsec);
-
-
         new_softexpires = timespec_to_ktime(new_expires_time);
-        
-        /* Send a signal to the user */
+        printk(KERN_INFO "[interface_update] task %d updated: t_exp %ld.%09lu -> %ld.%09lu\n", task->pid, old_expires_time.tv_sec, old_expires_time.tv_nsec, new_expires_time.tv_sec, new_expires_time.tv_nsec);
+        timeline_node = rb_next(timeline_node);
         retval = ktime_compare(new_softexpires, current_sys_time);
         if(retval <= 0)
         {
@@ -316,17 +346,15 @@ int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
             hrtimer_cancel(timer);
             wake_up_process(task);
             interface_cancel(sleeping_task);
-
             printk(KERN_INFO "[interface_update] task %d missed deadline due to changed time\n", task->pid);
             ret_flag--;
         }
         else
         {
-            hrtimer_set_expires(timer, new_softexpires);
-            interface_reconfigure(timer);
+            printk(KERN_INFO "[interface update] task %d being reprogrammed due to changed time\n", task->pid);
+            interface_reconfigure(timer, new_softexpires);
         }
-        next_node = rb_next(timeline_node);
-        timeline_node = next_node;
+        
     }
     
     return ret_flag;
@@ -386,6 +414,7 @@ static int __init timeline_init(void) {
     global_timeline.nsec = 0;
     global_timeline.mult = 1;
     global_timeline.event_head = RB_ROOT;
+    spin_lock_init(&global_timeline.rb_lock);
 
 
     printk(KERN_INFO"[timeline] module loaded\n");
