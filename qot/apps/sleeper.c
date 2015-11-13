@@ -30,12 +30,13 @@ int main(int argc, char **argv) {
         if(!t)  t = 2;              // no non-zero values allowed
     } else t = 2;
     count = 0;
+    printf("[sleeper] PID: %d sleeping for %ld secs on timeline \"%s\"\n", getpid(), t, tlid);
     while(1) {
         clock_gettime(CLOCK_REALTIME, &t_now);      // get current time
-        t_next.tv_sec = t_now.tv_sec + 1;           // start at next sec
+        t_next.tv_sec = t_now.tv_sec + t;           // start at next sec
         t_next.tv_nsec = 0;
         count++;
-        printf("[sleeper] (%ld) CLOCK_REALTIME, current start: %ld.%09lu, next start: %ld.%09lu", count, t_now.tv_sec, t_now.tv_nsec, t_next.tv_sec, t_next.tv_nsec);
+        printf("[sleeper] (%ld) CLOCK_REALTIME, current start: %ld.%09lu, next start: %ld.%09lu\n", count, t_now.tv_sec, t_now.tv_nsec, t_next.tv_sec, t_next.tv_nsec);
         syscall(__TIMELINE_NANOSLEEP, tlid, &t_next);
     }
     return 0;
