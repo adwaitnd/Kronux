@@ -141,8 +141,14 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
     
     hrtimer_init_on_stack(&sleep_timer.timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
     hrtimer_set_expires(&sleep_timer.timer, timespec_to_ktime(t_wake));
+<<<<<<< HEAD
+    interface_init_sleeper(&sleep_timer, current);
+    timeline_event_add(&tl->event_head, &sleep_timer);
+   
+=======
     interface_init_sleeper(&sleep_timer, current, tl);
 
+>>>>>>> 5a2a1ecda1ea4025344b1933c60e6c098a027fdf
     do {
         set_current_state(TASK_INTERRUPTIBLE);
         hrtimer_start_expires(&sleep_timer.timer, HRTIMER_MODE_ABS);
@@ -312,6 +318,28 @@ int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
     
     return ret_flag;
 }
+
+
+asmlinkage long print_timeline(char* uuid)
+{
+    struct rb_node *timeline_node = NULL;
+    struct rb_node *next_node = NULL;
+    /*Get the current system time*/
+    
+    timeline_node = rb_first(&global_timeline.event_head);
+    printk(KERN_INFO "Displaying the global timeline\n");
+    printk(KERN_INFO "PID\tExpiry Time\n");
+    while(timeline_node != NULL)
+    {
+        sleeping_task = container_of(timeline_node, struct timeline_sleeper, tl_node);
+        printk(KERN_INFO "%d\t%lld\n", sleeping_task->task->pid, ktime_to_ns(sleeping_task->timer->_softexpires));
+        
+        next_node = rb_next(timeline_node);
+        timeline_node = next_node;
+    }
+    return 0;
+}
+
 
 // this is a dummy for now. We interface with Andrew later
 struct qot_timeline *get_timeline(char *uuid) {
