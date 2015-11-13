@@ -192,7 +192,7 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
     hrtimer_set_expires(&sleep_timer.timer, timespec_to_ktime(t_wake));
     interface_init_sleeper(&sleep_timer, current);
     timeline_event_add(&tl->event_head, &sleep_timer);
-
+   
     do {
         set_current_state(TASK_INTERRUPTIBLE);
         hrtimer_start_expires(&sleep_timer.timer, HRTIMER_MODE_ABS);
@@ -285,6 +285,43 @@ int interface_update(struct timespec (*get_new_time)(struct timespec *), struct 
     }
     
     return ret_flag;
+}
+
+void print_timeline(char* uuid)
+{
+    struct rb_node *timeline_node = NULL;
+    struct rb_node *next_node = NULL;
+    /*Get the current system time*/
+    
+    timeline_node = rb_first(&global_timeline->event_head);
+    while(timeline_node != NULL)
+    {
+        sleeping_task = container_of(timeline_node, struct timeline_sleeper, tl_node);
+        timer = sleeping_task->timer;
+        task = sleeping_task->task;
+        old_expires_time = ktime_to_timespec(timer->_softexpires);
+        new_expires_time = get_new_time(&old_expires_time);
+
+        new_softexpires = timespec_to_ktime(new_expires_time);
+        
+        /* Send a signal to the user */
+        retval = ktime_compare(new_softexpires, current_sys_time);
+        if(retval <= 0)
+        {
+            interface_signal(task);
+            interface_cancel(&timer->tl_node);
+            hrtimer_cancel(timer);
+            wake_up_process(task);
+            ret_flag--;
+        }
+        else
+        {
+            hrtimer_set_expires(timer, new_softexpires);
+            interface_reconfigure(timer);
+        }
+        next_node = rb_next(timeline_node);
+        timeline_node = next_node;
+    }
 }
 
 // SYSCALL_DEFINE2(nanosleep, struct timespec __user *, rqtp,
