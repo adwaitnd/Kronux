@@ -264,8 +264,7 @@ static void interface_reconfigure(struct hrtimer *timer)
     struct timeline_sleeper *sleeper;
     sleeper = container_of(timer, struct timeline_sleeper, timer);
     hrtimer_cancel(timer);
-    hrtimer_init_on_stack(timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-    sleeper->timer = *timer;
+    hrtimer_init_on_stack(&sleeper->timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
     hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
     return;
 }
@@ -291,6 +290,12 @@ int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
     current_sys_time = ktime_get_real();
 
     timeline_node = rb_first(timeline_root);
+
+    for (timeline_node = rb_first(timeline_root); timeline_node; timeline_node = rb_next(node))
+    {
+        printk("key=%s\n", rb_entry(node, struct mytype, node)->keystring);
+    }
+    
     while(timeline_node != NULL)
     {
         sleeping_task = container_of(timeline_node, struct timeline_sleeper, tl_node);
@@ -308,9 +313,10 @@ int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
         if(retval <= 0)
         {
             // signal_missed_deadline(task);
-            interface_cancel(sleeping_task);
             hrtimer_cancel(timer);
             wake_up_process(task);
+            interface_cancel(sleeping_task);
+
             printk(KERN_INFO "[interface_update] task %d missed deadline due to changed time\n", task->pid);
             ret_flag--;
         }

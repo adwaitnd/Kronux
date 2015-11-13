@@ -3,6 +3,8 @@ KERNEL_DIR ?= ../..
 ARCH ?= arm
 # CROSS_COMPILE is relative to kernel directory
 CROSS_COMPILE ?= ../dl/gcc-linaro-4.9-2015.05-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
+#CROSS_COMPILE=~/Beagle-kernel-workspace/bb-kernel/dl/gcc-linaro-4.9-2015.05-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
+
 
 all: help
 
