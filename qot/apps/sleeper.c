@@ -23,11 +23,10 @@ struct timespec ns_to_timespec(long long nsec)
 
 int main(int argc, char **argv) {
     struct timespec t_now, t_next;
-    long t, count;
+    unsigned long t, count;
     char tlid[TIMELINE_ID_SIZE] = "local_time";
     if(argc > 1) {
-        sscanf(argv[1], "%ld", &t);
-        if(!t)  t = 2;              // no non-zero values allowed
+        if(sscanf(argv[1], "%lu", &t) != 1 || t==0) t = 2;              // no non-zero values allowed
     } else t = 2;
     count = 0;
     printf("[sleeper] PID: %d sleeping for %ld secs on timeline \"%s\"\n", getpid(), t, tlid);
@@ -36,8 +35,10 @@ int main(int argc, char **argv) {
         t_next.tv_sec = t_now.tv_sec + t;           // start at next sec
         t_next.tv_nsec = 0;
         count++;
-        printf("[sleeper] (%ld) CLOCK_REALTIME, current start: %ld.%09lu, next start: %ld.%09lu\n", count, t_now.tv_sec, t_now.tv_nsec, t_next.tv_sec, t_next.tv_nsec);
-        syscall(__TIMELINE_NANOSLEEP, tlid, &t_next);
+        printf("[sleeper] (%lu) CLOCK_REALTIME, current start: %ld.%09lu, next start: %ld.%09lu\n", count, t_now.tv_sec, t_now.tv_nsec, t_next.tv_sec, t_next.tv_nsec);
+        if(syscall(__TIMELINE_NANOSLEEP, tlid, &t_next) == -52) {
+            printf("[sleeper] missed deadline by > 1msec\n");
+        }
     }
     return 0;
 }

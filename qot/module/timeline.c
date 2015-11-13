@@ -132,7 +132,7 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
         return -EINVAL;
     }
 
-    printk(KERN_INFO "[sys_timeline_nanosleep] timeline id: %s, expiry: %ld.%lu", tlid, t_wake.tv_sec, t_wake.tv_nsec);
+    printk(KERN_INFO "[sys_timeline_nanosleep] timeline id: %s, expiry: %ld.%lu\n", tlid, t_wake.tv_sec, t_wake.tv_nsec);
 
     // try to find the given timeline from tree
     // assume we found it for now
