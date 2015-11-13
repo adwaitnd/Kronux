@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
         offset_nsec = 1000000000;
     }
     syscall(__PRINT_TIMELINE, tlid);            // print previous timeline contents to dmesg
-    syscall(__SET_OFFSET, tlid, &offset_nsec);  // change offset
+    syscall(__SET_OFFSET, tlid, offset_nsec);  // change offset
     syscall(__PRINT_TIMELINE, tlid);            // print new timeline contents to dmesg
 
     return 0;
