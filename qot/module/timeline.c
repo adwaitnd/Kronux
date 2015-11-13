@@ -73,7 +73,7 @@ struct timeline_sleeper {
 struct qot_delta {
     int64_t d_mult;                     // change in multiplier
     int64_t d_nsec;                     // change in offset
-}
+};
 
 //
 // global objects
@@ -97,9 +97,10 @@ struct qot_timeline global_timeline;
 //
 
 asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec __user *exp_time);
-asmlinkage long sys_set_offset(char __user *timeline_id, s64 offset);
+asmlinkage long sys_set_offset(char __user *timeline_id, int64_t offset);
+asmlinkage long sys_print_timeline(char __user *uuid);
 static int timeline_event_add(struct rb_root *head, struct timeline_sleeper *sleeper);
-static void signal_missed_deadline(struct task_struct *task);
+// static void signal_missed_deadline(struct task_struct *task);
 static void interface_cancel(struct timeline_sleeper *sleeper);
 static enum hrtimer_restart interface_wakeup(struct hrtimer *timer);
 static void interface_init_sleeper(struct timeline_sleeper *sl, struct task_struct *task, struct qot_timeline *timeline);
@@ -137,26 +138,25 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
     // assume we found it for now
     tl = get_timeline(tlid);
 
+    printk("[sys_timeline_nanosleep] found timeline %s\n", tl->uuid);
+
     // hrtimer has been initialized
     
     hrtimer_init_on_stack(&sleep_timer.timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
     hrtimer_set_expires(&sleep_timer.timer, timespec_to_ktime(t_wake));
-<<<<<<< HEAD
-    interface_init_sleeper(&sleep_timer, current);
-    timeline_event_add(&tl->event_head, &sleep_timer);
-   
-=======
     interface_init_sleeper(&sleep_timer, current, tl);
 
->>>>>>> 5a2a1ecda1ea4025344b1933c60e6c098a027fdf
     do {
         set_current_state(TASK_INTERRUPTIBLE);
         hrtimer_start_expires(&sleep_timer.timer, HRTIMER_MODE_ABS);
         if (!hrtimer_active(&sleep_timer.timer))
             sleep_timer.task = NULL;
 
-        if (likely(sleep_timer.task))
+        getnstimeofday(&t_now);
+        if (likely(sleep_timer.task)) {
+            printk(KERN_INFO"[sys_timeline_nanosleep] task %d sleeping at %ld.%09lu\n", current->pid, t_now.tv_sec, t_now.tv_nsec);
             freezable_schedule();
+        }
 
         hrtimer_cancel(&sleep_timer.timer);
     } while (sleep_timer.task && !signal_pending(sleep_timer.task));
@@ -165,22 +165,23 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
 
     // get system time for comparision
     getnstimeofday(&t_now);
-
+    printk(KERN_INFO"[sys_timeline_nanosleep] task %d woke up at %ld.%09lu\n", current->pid, t_now.tv_sec, t_now.tv_nsec);
     // check if t_now - t_wake > epsilon
     delta = timespec_sub(t_now, t_wake);
     if(timespec_compare(&delta, &epsilon) <= 0) {
         return sleep_timer.task == NULL;
     } else {
+        printk(KERN_INFO "[sys_timeline_nanosleep] task %d waited too long\n", current->pid);
         return -EBADE;
     }
 }
 
 // right now just change the global_timeline directly without a bother for checking timelines
-asmlinkage long sys_set_offset(char __user *timeline_id, s64 offset) {
+asmlinkage long sys_set_offset(char __user *timeline_id, int64_t offset) {
     struct qot_delta delta;
-    delta.d_nsec = ktime_sub(offset, global_timeline.nsec);
+    delta.d_nsec = offset - global_timeline.nsec;
     delta.d_mult = 0;
-    printk(KERN_INFO "[set_offset] change offset to ")
+    printk(KERN_INFO "[set_offset] change offset to %lld (delta mult: %lld, off: %lld)\n", offset, delta.d_mult, delta.d_nsec);
     global_timeline.nsec = offset;
     interface_update(&global_timeline.event_head, &delta);
     return offset;
@@ -192,28 +193,31 @@ struct timespec update_time(struct timespec *old, struct qot_delta *delta) {
 }
 
 
-/*Sends a signal to a process*/
-static void signal_missed_deadline(struct task_struct *task) {
-    struct siginfo info;
+// /*Sends a signal to a process*/
+// static void signal_missed_deadline(struct task_struct *task) {
+//     struct siginfo info;
 
-    memset(&info, 0, sizeof(struct siginfo));
-    info.si_signo = SIGTASKEXPIRED;
-    info.si_code = SI_KERNEL;
-    info.si_int = 0;
+//     memset(&info, 0, sizeof(struct siginfo));
+//     info.si_signo = SIGTASKEXPIRED;
+//     info.si_code = SI_KERNEL;
+//     info.si_int = 0;
 
-    send_sig_info(SIGTASKEXPIRED, &info, task);
-}
+//     send_sig_info(SIGTASKEXPIRED, &info, task);
+// }
 
 /*Destroys a timeline node*/
 static void interface_cancel(struct timeline_sleeper *sleeper) {
+    printk(KERN_INFO "[interface_cancel] removing task %d timeline_sleeper from timeline %s\n", sleeper->task->pid, sleeper->timeline->uuid);
     rb_erase(&sleeper->tl_node, &sleeper->timeline->event_head);
     return;
 }
 
 /* hrtimer callback wakes up a task*/
 static enum hrtimer_restart interface_wakeup(struct hrtimer *timer) {
-    struct timeline_sleeper *t = container_of(timer, struct timeline_sleeper, timer);
-    struct task_struct *task = t->task;
+    struct timeline_sleeper *t;
+    struct task_struct *task;
+    t = container_of(timer, struct timeline_sleeper, timer);
+    task = t->task;
     interface_cancel(t);
     t->task = NULL;
     if(task)
@@ -294,6 +298,8 @@ int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
         task = sleeping_task->task;
         old_expires_time = ktime_to_timespec(timer->_softexpires);
         new_expires_time = update_time(&old_expires_time, delta);
+        printk(KERN_INFO "[interface_update] task %d updated: t_exp %ld.%09lu -> %ld.%09lu\n", task->pid, old_expires_time.tv_sec, old_expires_time.tv_nsec, new_expires_time.tv_sec, new_expires_time.tv_nsec);
+
 
         new_softexpires = timespec_to_ktime(new_expires_time);
         
@@ -305,6 +311,7 @@ int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
             interface_cancel(sleeping_task);
             hrtimer_cancel(timer);
             wake_up_process(task);
+            printk(KERN_INFO "[interface_update] task %d missed deadline due to changed time\n", task->pid);
             ret_flag--;
         }
         else
@@ -320,10 +327,11 @@ int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
 }
 
 
-asmlinkage long print_timeline(char* uuid)
+asmlinkage long sys_print_timeline(char __user *uuid)
 {
     struct rb_node *timeline_node = NULL;
     struct rb_node *next_node = NULL;
+    struct timeline_sleeper *sleeping_task;
     /*Get the current system time*/
     
     timeline_node = rb_first(&global_timeline.event_head);
@@ -332,7 +340,7 @@ asmlinkage long print_timeline(char* uuid)
     while(timeline_node != NULL)
     {
         sleeping_task = container_of(timeline_node, struct timeline_sleeper, tl_node);
-        printk(KERN_INFO "%d\t%lld\n", sleeping_task->task->pid, ktime_to_ns(sleeping_task->timer->_softexpires));
+        printk(KERN_INFO "%d\t%lld\n", sleeping_task->task->pid, ktime_to_ns(sleeping_task->timer._softexpires));
         
         next_node = rb_next(timeline_node);
         timeline_node = next_node;
@@ -363,6 +371,8 @@ static int __init timeline_init(void) {
     old_custom7 = sys_call_table[__NR_qot_custom7];
     sys_call_table[__NR_qot_custom0] = &sys_timeline_nanosleep;
     sys_call_table[__NR_qot_custom1] = &sys_set_offset;
+    sys_call_table[__NR_qot_custom2] = &sys_print_timeline;
+
 
     // test arena
 
