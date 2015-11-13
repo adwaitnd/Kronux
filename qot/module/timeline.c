@@ -70,6 +70,11 @@ struct timeline_sleeper {
     struct task_struct *task;           // task this belongs to
 };
 
+struct qot_delta {
+    int64_t d_mult;                     // change in multiplier
+    int64_t d_nsec;                     // change in offset
+}
+
 //
 // global objects
 //
@@ -92,16 +97,16 @@ struct qot_timeline global_timeline;
 //
 
 asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec __user *exp_time);
+asmlinkage long sys_set_offset(char __user *timeline_id, s64 offset);
 static int timeline_event_add(struct rb_root *head, struct timeline_sleeper *sleeper);
 static void signal_missed_deadline(struct task_struct *task);
 static void interface_cancel(struct timeline_sleeper *sleeper);
 static enum hrtimer_restart interface_wakeup(struct hrtimer *timer);
 static void interface_init_sleeper(struct timeline_sleeper *sl, struct task_struct *task, struct qot_timeline *timeline);
 static void interface_reconfigure(struct hrtimer *timer);
-int interface_update(struct timespec (*get_new_time)(struct timespec *), struct rb_root *timeline_root);
+int interface_update(struct rb_root *timeline_root, struct qot_delta *delta);
 struct qot_timeline *get_timeline(char *uuid);
-
-
+struct timespec update_time(struct timespec* old, struct qot_delta *delta);
 
 //
 // function declarations
@@ -164,7 +169,21 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
     }
 }
 
-asmlinkage long 
+// right now just change the global_timeline directly without a bother for checking timelines
+asmlinkage long sys_set_offset(char __user *timeline_id, s64 offset) {
+    struct qot_delta delta;
+    delta.d_nsec = ktime_sub(offset, global_timeline.nsec);
+    delta.d_mult = 0;
+    printk(KERN_INFO "[set_offset] change offset to ")
+    global_timeline.nsec = offset;
+    interface_update(&global_timeline.event_head, &delta);
+    return offset;
+}
+
+// only updates offset for now
+struct timespec update_time(struct timespec *old, struct qot_delta *delta) {
+    return timespec_add(*old, ns_to_timespec(delta->d_nsec));
+}
 
 
 /*Sends a signal to a process*/
@@ -242,7 +261,7 @@ static void interface_reconfigure(struct hrtimer *timer)
 }
 
 /* Updates hrtimer softexpires when a time change happens, called by the set_time adj_time functions*/
-int interface_update(struct timespec (*get_new_time)(struct timespec *), struct rb_root *timeline_root)
+int interface_update(struct rb_root *timeline_root, struct qot_delta *delta)
 {
     struct timespec new_expires_time;
     struct timespec old_expires_time;
@@ -268,7 +287,7 @@ int interface_update(struct timespec (*get_new_time)(struct timespec *), struct 
         timer = &sleeping_task->timer;
         task = sleeping_task->task;
         old_expires_time = ktime_to_timespec(timer->_softexpires);
-        new_expires_time = get_new_time(&old_expires_time);
+        new_expires_time = update_time(&old_expires_time, delta);
 
         new_softexpires = timespec_to_ktime(new_expires_time);
         
@@ -315,7 +334,8 @@ static int __init timeline_init(void) {
     old_custom6 = sys_call_table[__NR_qot_custom6];
     old_custom7 = sys_call_table[__NR_qot_custom7];
     sys_call_table[__NR_qot_custom0] = &sys_timeline_nanosleep;
-    
+    sys_call_table[__NR_qot_custom1] = &sys_set_offset;
+
     // test arena
 
     strncpy(global_timeline.uuid, "local_time", QOT_MAX_NAMELEN);
