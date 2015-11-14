@@ -107,7 +107,7 @@ asmlinkage long sys_set_offset(char __user *timeline_id, s64 __user *off);
 asmlinkage long sys_print_timeline(char __user *uuid);
 static int timeline_event_add(struct rb_root *head, struct timeline_sleeper *sleeper);
 // static void signal_missed_deadline(struct task_struct *task);
-static void interface_cancel(struct timeline_sleeper *sleeper);
+// static void interface_cancel(struct timeline_sleeper *sleeper);
 static enum hrtimer_restart interface_wakeup(struct hrtimer *timer);
 static void interface_init_sleeper(struct timeline_sleeper *sl, struct task_struct *task, struct qot_timeline *timeline);
 int interface_update(struct rb_root *timeline_root, struct qot_clock_params *old_params, struct qot_clock_params *new_params);
@@ -158,12 +158,15 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
         if (!hrtimer_active(&sleep_timer.timer))
             sleep_timer.task = NULL;
 
-        getnstimeofday(&t_now);
+        // getnstimeofday(&t_now);
         if (likely(sleep_timer.task)) {
+
             //printk(KERN_INFO"[sys_timeline_nanosleep] task %d sleeping at %ld.%09lu\n", current->pid, t_now.tv_sec, t_now.tv_nsec);
             freezable_schedule();
         }
-
+        // interface_cancel(&sleep_timer);
+        if(!(sleep_timer.task && !signal_pending(sleep_timer.task)))
+            rb_erase(&sleep_timer.tl_node, &sleep_timer.timeline->event_head);
         hrtimer_cancel(&sleep_timer.timer);
     } while (sleep_timer.task && !signal_pending(sleep_timer.task));
     
@@ -232,11 +235,11 @@ ktime_t update_time(ktime_t old, struct qot_clock_params *old_params, struct qot
 // }
 
 /*Destroys a timeline node*/
-static void interface_cancel(struct timeline_sleeper *sleeper) {
-    printk(KERN_INFO "[interface_cancel] removing task %d timeline_sleeper from timeline %s\n", sleeper->task->pid, sleeper->timeline->uuid);
-    rb_erase(&sleeper->tl_node, &sleeper->timeline->event_head);
-    return;
-}
+// static void interface_cancel(struct timeline_sleeper *sleeper) {
+//     printk(KERN_INFO "[interface_cancel] removing task %d timeline_sleeper from timeline %s\n", sleeper->task->pid, sleeper->timeline->uuid);
+//     rb_erase(&sleeper->tl_node, &sleeper->timeline->event_head);
+//     return;
+// }
 
 /* hrtimer callback wakes up a task*/
 static enum hrtimer_restart interface_wakeup(struct hrtimer *timer) {
@@ -244,7 +247,6 @@ static enum hrtimer_restart interface_wakeup(struct hrtimer *timer) {
     struct task_struct *task;
     t = container_of(timer, struct timeline_sleeper, timer);
     task = t->task;
-    interface_cancel(t);
     t->task = NULL;
     if(task)
         wake_up_process(task);
