@@ -1302,7 +1302,8 @@ at86rf230_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
 	struct at86rf230_local *lp = hw->priv;
 	int rc = 0;
 
-	lp->tx_aret = retries >= 0;
+	/* Force ARET on to get external interrupt on TX/RX */
+	lp->tx_aret = 1;
 	lp->max_frame_retries = retries;
 
 	if (retries >= 0)
@@ -1413,23 +1414,38 @@ static int at86rf230_hw_init(struct at86rf230_local *lp, u8 xtal_trim)
 	    irq_type == IRQ_TYPE_LEVEL_LOW)
 		irq_pol = IRQ_ACTIVE_LOW;
 
+	/* Configure IRQ */
 	rc = at86rf230_write_subreg(lp, SR_IRQ_POLARITY, irq_pol);
 	if (rc)
 		return rc;
-
 	rc = at86rf230_write_subreg(lp, SR_RX_SAFE_MODE, 1);
 	if (rc)
 		return rc;
-
 	rc = at86rf230_write_subreg(lp, SR_IRQ_MASK, IRQ_TRX_END);
 	if (rc)
 		return rc;
-
-	/* reset values differs in at86rf231 and at86rf233 */
 	rc = at86rf230_write_subreg(lp, SR_IRQ_MASK_MODE, 0);
 	if (rc)
 		return rc;
 
+	/* Turn on TX and RX timestamping*/
+	rc = at86rf230_write_subreg(lp, SR_IRQ_2_EXT_EN, 1);	
+	if (rc)
+		return rc;
+	rc = at86rf230_write_subreg(lp, SR_RESERVED_17_1, 1);	
+ 	if (rc)
+ 		return rc;
+
+	/* Configure the back-off mechanism to enable hardware interrupt */
+	rc = at86rf230_write_subreg(lp, SR_TX_AUTO_CRC_ON,    1);	
+	if (rc)
+		return rc;
+	rc = at86rf230_write_subreg(lp, SR_MAX_CSMA_RETRIES,  0);	
+	if (rc)
+		return rc;
+	rc = at86rf230_write_subreg(lp, SR_MAX_FRAME_RETRIES, 0);	
+	if (rc)
+		return rc;
 	get_random_bytes(csma_seed, ARRAY_SIZE(csma_seed));
 	rc = at86rf230_write_subreg(lp, SR_CSMA_SEED_0, csma_seed[0]);
 	if (rc)
@@ -1438,15 +1454,14 @@ static int at86rf230_hw_init(struct at86rf230_local *lp, u8 xtal_trim)
 	if (rc)
 		return rc;
 
-	/* CLKM changes are applied immediately */
+	/* Enable LKM @ 16MHz clock at */
 	rc = at86rf230_write_subreg(lp, SR_CLKM_SHA_SEL, 0x00);
-	if (rc)
-		return rc;
+ 	if (rc)
+ 		return rc;
+	rc = at86rf230_write_subreg(lp, SR_CLKM_CTRL, 0x5);
+ 	if (rc)
+ 		return rc;
 
-	/* Turn CLKM Off */
-	rc = at86rf230_write_subreg(lp, SR_CLKM_CTRL, 0x00);
-	if (rc)
-		return rc;
 	/* Wait the next SLEEP cycle */
 	usleep_range(lp->data->t_sleep_cycle,
 		     lp->data->t_sleep_cycle + 100);

@@ -23,6 +23,7 @@
 #include <linux/if_arp.h>
 #include <linux/if.h>
 #include <linux/termios.h>	/* For TIOCOUTQ/INQ */
+#include <linux/errqueue.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <net/datalink.h>
@@ -102,7 +103,6 @@ static int ieee802154_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 				   size_t len)
 {
 	struct sock *sk = sock->sk;
-
 	return sk->sk_prot->sendmsg(sk, msg, len);
 }
 
@@ -309,6 +309,8 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	skb->dev = dev;
 	skb->sk  = sk;
 	skb->protocol = htons(ETH_P_IEEE802154);
+
+	sock_tx_timestamp(sk, &skb_shinfo(skb)->tx_flags);
 
 	dev_put(dev);
 
@@ -697,6 +699,8 @@ static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	skb->sk  = sk;
 	skb->protocol = htons(ETH_P_IEEE802154);
 
+	sock_tx_timestamp(sk, &skb_shinfo(skb)->tx_flags);
+
 	dev_put(dev);
 
 	err = dev_queue_xmit(skb);
@@ -713,6 +717,47 @@ out:
 	return err;
 }
 
+/*
+ *	Handle MSG_ERRQUEUE
+ */
+int dgram_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
+{
+	struct sock_exterr_skb *serr;
+	struct sk_buff *skb;
+	DECLARE_SOCKADDR(struct sockaddr_in *, sin, msg->msg_name);
+	struct {
+		struct sock_extended_err ee;
+		struct sockaddr_in	 offender;
+	} errhdr;
+	int err;
+	int copied;
+
+	err = -EAGAIN;
+	skb = sock_dequeue_err_skb(sk);
+	if (!skb)
+		goto out;
+
+	copied = skb->len;
+	if (copied > len) {
+		msg->msg_flags |= MSG_TRUNC;
+		copied = len;
+	}
+	err = skb_copy_datagram_msg(skb, 0, msg, copied);
+	if (err)
+		goto out_free_skb;
+
+	sock_recv_timestamp(msg, sk, skb);
+
+	/* Now we could try to dump offended packet options */
+	msg->msg_flags |= MSG_ERRQUEUE;
+	err = copied;
+
+out_free_skb:
+	kfree_skb(skb);
+out:
+	return err;
+}
+
 static int dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 			 int noblock, int flags, int *addr_len)
 {
@@ -720,6 +765,9 @@ static int dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	int err = -EOPNOTSUPP;
 	struct sk_buff *skb;
 	DECLARE_SOCKADDR(struct sockaddr_ieee802154 *, saddr, msg->msg_name);
+
+	if (flags & MSG_ERRQUEUE)
+		return dgram_recv_error(sk, msg, len, addr_len);
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb)

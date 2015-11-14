@@ -160,7 +160,7 @@
 	tclkin_ck: tclkin_ck {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
-		clock-frequency = <12000000>;
+		clock-frequency = <16000000>;
 	};
 
 	dpll_core_ck: dpll_core_ck {
