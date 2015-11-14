@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 
     printf("[print_offset] changing timeline \"%s\" offset to %lld (%x)\n", tlid, offset_nsec, offset_nsec);
     syscall(__PRINT_TIMELINE, tlid);            // print previous timeline contents to dmesg
-    syscall(__SET_OFFSET, tlid, offset_nsec);  // change offset
+    syscall(__SET_OFFSET, tlid, &offset_nsec);  // change offset
     syscall(__PRINT_TIMELINE, tlid);            // print new timeline contents to dmesg
 
     return 0;
