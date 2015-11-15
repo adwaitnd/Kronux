@@ -150,7 +150,9 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
     
     hrtimer_init_on_stack(&sleep_timer.timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
     hrtimer_set_expires(&sleep_timer.timer, timespec_to_ktime(t_wake));
+    spin_lock(&sleep_timer.timeline->rb_lock);
     interface_init_sleeper(&sleep_timer, current, tl);
+    spin_unlock(&sleep_timer.timeline->rb_lock);
 
     do {
         set_current_state(TASK_INTERRUPTIBLE);
@@ -166,7 +168,11 @@ asmlinkage long sys_timeline_nanosleep(char __user *timeline_id, struct timespec
         }
         // interface_cancel(&sleep_timer);
         if(!(sleep_timer.task && !signal_pending(sleep_timer.task)))
+        {
+            spin_lock(&sleep_timer.timeline->rb_lock);
             rb_erase(&sleep_timer.tl_node, &sleep_timer.timeline->event_head);
+            spin_unlock(&sleep_timer.timeline->rb_lock);
+        }
         hrtimer_cancel(&sleep_timer.timer);
     } while (sleep_timer.task && !signal_pending(sleep_timer.task));
     
@@ -324,7 +330,9 @@ int interface_update(struct rb_root *timeline_root, struct qot_clock_params *old
             printk(KERN_INFO "[interface_update] task %d missed due to changed notion of time\n", task->pid);
             interface_wakeup(timer);            // this is a callback function. NEEDED
             missed_events++;                    // increment number of missed events
-        } else {
+        } 
+        else 
+        {
             // reprogram timer with new value
             printk(KERN_INFO "[interface_update] task %d timer reprogrammed\n", task->pid);
             if(hrtimer_active(timer)) {     // cancel old if active
